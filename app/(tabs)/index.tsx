@@ -1,6 +1,14 @@
-import { ScrollView, Text, View, TouchableOpacity } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useState } from "react";
+import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
+import { EmptyState } from "@/components/empty-state";
+import { ProgressBar } from "@/components/progress-bar";
 import { ScreenContainer } from "@/components/screen-container";
+import { BRAND } from "@/constants/brand";
+import { loadLearningPaths } from "@/lib/learning-paths";
+import { getFirstOpenTask, getPathProgress, type LearningPath } from "@/lib/plan-builder";
 
 /**
  * Home Screen - NativeWind Example
@@ -15,34 +23,93 @@ import { ScreenContainer } from "@/components/screen-container";
  * - Custom colors defined in tailwind.config.js
  */
 export default function HomeScreen() {
+  const router = useRouter();
+  const [paths, setPaths] = useState<LearningPath[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setPaths(await loadLearningPaths());
+    setLoading(false);
+  }, []);
+
+  useFocusEffect(useCallback(() => { void refresh(); }, [refresh]));
+
+  const activePath = paths.find((path) => getPathProgress(path) < 100) ?? paths[0];
+
   return (
-    <ScreenContainer className="p-6">
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        <View className="flex-1 gap-8">
-          {/* Hero Section */}
-          <View className="items-center gap-2">
-            <Text className="text-4xl font-bold text-foreground">Welcome</Text>
-            <Text className="text-base text-muted text-center">
-              Edit app/(tabs)/index.tsx to get started
-            </Text>
-          </View>
-
-          {/* Example Card */}
-          <View className="w-full max-w-sm self-center bg-surface rounded-2xl p-6 shadow-sm border border-border">
-            <Text className="text-lg font-semibold text-foreground mb-2">NativeWind Ready</Text>
-            <Text className="text-sm text-muted leading-relaxed">
-              Use Tailwind CSS classes directly in your React Native components.
-            </Text>
-          </View>
-
-          {/* Example Button */}
-          <View className="items-center">
-            <TouchableOpacity className="bg-primary px-6 py-3 rounded-full active:opacity-80">
-              <Text className="text-background font-semibold">Get Started</Text>
+    <ScreenContainer>
+      <FlatList
+        data={activePath ? [activePath] : []}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.content}
+        refreshing={loading}
+        onRefresh={() => void refresh()}
+        ListHeaderComponent={
+          <View>
+            <View style={styles.header}>
+              <View>
+                <Text style={styles.eyebrow}>رفيقك للتعلّم</Text>
+                <Text style={styles.title}>خطوتي</Text>
+                <Text style={styles.subtitle}>حوّل أي هدف إلى خطوات واضحة.</Text>
+              </View>
+              <View style={styles.headerIcon}>
+                <MaterialCommunityIcons name="compass-rose" size={27} color={BRAND.primary} />
+              </View>
+            </View>
+            <TouchableOpacity style={styles.primaryButton} onPress={() => router.push("/create" as any)} activeOpacity={0.86} accessibilityRole="button">
+              <MaterialCommunityIcons name="plus" size={21} color="#FFFFFF" />
+              <Text style={styles.primaryButtonText}>ابدأ هدفًا جديدًا</Text>
             </TouchableOpacity>
+            {loading ? <ActivityIndicator style={styles.loader} color={BRAND.primary} /> : null}
           </View>
-        </View>
-      </ScrollView>
+        }
+        renderItem={({ item }) => {
+          const progress = getPathProgress(item);
+          const nextTask = getFirstOpenTask(item);
+          return (
+            <TouchableOpacity
+              style={styles.pathCard}
+              activeOpacity={0.82}
+              onPress={() => router.push(`/plan/${item.id}` as any)}
+              accessibilityRole="button"
+            >
+              <View style={styles.cardTopline}>
+                <Text style={styles.cardLabel}>مسارك الحالي</Text>
+                <Text style={styles.progressText}>{progress}%</Text>
+              </View>
+              <Text style={styles.pathTitle}>{item.title}</Text>
+              <Text style={styles.pathDescription} numberOfLines={2}>{item.overview}</Text>
+              <ProgressBar value={progress} />
+              <View style={styles.nextRow}>
+                <MaterialCommunityIcons name={progress === 100 ? "check-circle" : "arrow-left-bottom"} size={18} color={progress === 100 ? BRAND.success : BRAND.primary} />
+                <Text style={styles.nextText}>{progress === 100 ? "أتممت هذا المسار" : `التالي: ${nextTask?.title ?? "أكمل المراجعة"}`}</Text>
+              </View>
+            </TouchableOpacity>
+          );
+        }}
+        ListEmptyComponent={!loading ? <EmptyState icon="map-marker-path" title="ما عندك مسار بعد" description="اكتب هدفًا تريد تعلّمه، وسنقسّمه إلى مهام قصيرة ومصادر مرتبة." actionLabel="أنشئ أول مسار" onAction={() => router.push("/create" as any)} /> : null}
+      />
     </ScreenContainer>
   );
 }
+
+const styles = StyleSheet.create({
+  content: { padding: 20, paddingBottom: 30, flexGrow: 1 },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 20 },
+  eyebrow: { fontSize: 13, lineHeight: 20, color: BRAND.primary, fontWeight: "800" },
+  title: { fontSize: 34, lineHeight: 42, color: BRAND.text, fontWeight: "900", marginTop: 2 },
+  subtitle: { fontSize: 15, lineHeight: 24, color: BRAND.muted, marginTop: 2 },
+  headerIcon: { width: 54, height: 54, borderRadius: 18, backgroundColor: BRAND.primarySoft, alignItems: "center", justifyContent: "center" },
+  primaryButton: { minHeight: 54, borderRadius: 17, backgroundColor: BRAND.primary, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8, marginBottom: 22 },
+  primaryButtonText: { color: "#FFFFFF", fontSize: 16, fontWeight: "800" },
+  loader: { marginVertical: 12 },
+  pathCard: { backgroundColor: BRAND.surface, borderRadius: 22, padding: 18, borderColor: BRAND.border, borderWidth: 1, shadowColor: "#1E2A4A", shadowOpacity: 0.05, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 2 },
+  cardTopline: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
+  cardLabel: { color: BRAND.primary, fontSize: 13, fontWeight: "800" },
+  progressText: { color: BRAND.muted, fontSize: 14, fontWeight: "800" },
+  pathTitle: { color: BRAND.text, fontSize: 20, lineHeight: 29, fontWeight: "900", textAlign: "right" },
+  pathDescription: { color: BRAND.muted, fontSize: 14, lineHeight: 21, marginTop: 6, marginBottom: 17, textAlign: "right" },
+  nextRow: { flexDirection: "row", alignItems: "center", gap: 7, marginTop: 14 },
+  nextText: { flex: 1, color: BRAND.text, fontSize: 13, lineHeight: 20, fontWeight: "700", textAlign: "right" },
+});
