@@ -87,6 +87,13 @@ const config: ExpoConfig = {
   plugins: [
     "expo-router",
     [
+      "expo-notifications",
+      {
+        color: "#315BCE",
+        defaultChannel: "khutwati-daily-learning",
+      },
+    ],
+    [
       "expo-audio",
       {
         microphonePermission: "Allow $(PRODUCT_NAME) to access your microphone.",
