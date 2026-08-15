@@ -93,7 +93,7 @@ export default function SettingsScreen() {
           </View>
           <View style={styles.divider} />
           <View style={styles.preferenceRow}>
-            <Switch value={colorScheme === "dark"} onValueChange={(value) => setColorScheme(value ? "dark" : "light")} trackColor={{ false: "#CBD5E1", true: "#245A3A" }} thumbColor={colorScheme === "dark" ? BRAND.primary : "#FFFFFF"} />
+            <Switch value={colorScheme === "dark"} onValueChange={(value) => setColorScheme(value ? "dark" : "light")} trackColor={{ false: "#334039", true: "#1B7040" }} thumbColor={colorScheme === "dark" ? BRAND.primary : "#DCE6DF"} />
             <View style={styles.rowText}><Text style={styles.rowTitle}>{t("darkMode")}</Text><Text style={styles.rowDescription}>{t("darkModeDescription")}</Text></View>
             <View style={styles.iconWrap}><MaterialCommunityIcons name="theme-light-dark" size={21} color={BRAND.primary} /></View>
           </View>
@@ -105,8 +105,8 @@ export default function SettingsScreen() {
               value={reminder?.enabled ?? false}
               onValueChange={(value) => void toggleReminder(value)}
               disabled={!reminder || savingReminder}
-              trackColor={{ false: "#CBD5E1", true: "#9DB4F5" }}
-              thumbColor={reminder?.enabled ? BRAND.primary : "#FFFFFF"}
+              trackColor={{ false: "#334039", true: "#1B7040" }}
+              thumbColor={reminder?.enabled ? BRAND.primary : "#DCE6DF"}
             />
             <View style={styles.reminderTitleWrap}>
               <Text style={styles.rowTitle}>تذكير السلسلة اليومي</Text>
@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
   rowTitle: { color: BRAND.text, fontSize: 15, fontWeight: "800", textAlign: "right" },
   rowDescription: { color: BRAND.muted, fontSize: 12, marginTop: 3, textAlign: "right" },
   divider: { height: 1, backgroundColor: BRAND.border, marginVertical: 15 },
-  dangerButton: { flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center", minHeight: 50, marginTop: 20, borderWidth: 1, borderColor: "#F5C7CC", borderRadius: 16, backgroundColor: "#FFF7F8" },
+  dangerButton: { flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center", minHeight: 50, marginTop: 20, borderWidth: 1, borderColor: "#66333A", borderRadius: 16, backgroundColor: "#241014" },
   dangerText: { color: BRAND.danger, fontWeight: "800", fontSize: 14 },
   preferenceCard: { marginTop: 16, padding: 16, borderWidth: 1, borderColor: BRAND.border, borderRadius: 21, backgroundColor: BRAND.surface },
   preferenceRow: { flexDirection: "row", alignItems: "center", gap: 12 },
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
   reminderTitleWrap: { flex: 1 },
   timeLabel: { color: BRAND.text, fontSize: 13, fontWeight: "800", textAlign: "right", marginTop: 17, marginBottom: 9 },
   timeChoices: { flexDirection: "row", gap: 8 },
-  timeChoice: { flex: 1, minHeight: 39, alignItems: "center", justifyContent: "center", borderRadius: 12, borderWidth: 1, borderColor: BRAND.border, backgroundColor: "#F8FAFC" },
+  timeChoice: { flex: 1, minHeight: 39, alignItems: "center", justifyContent: "center", borderRadius: 12, borderWidth: 1, borderColor: BRAND.border, backgroundColor: BRAND.background },
   timeChoiceSelected: { backgroundColor: BRAND.primarySoft, borderColor: BRAND.primary },
   timeChoiceText: { color: BRAND.muted, fontSize: 12, fontWeight: "800" },
   timeChoiceTextSelected: { color: BRAND.primary },
