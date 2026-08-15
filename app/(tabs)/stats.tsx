@@ -10,15 +10,20 @@ import { BRAND } from "@/constants/brand";
 import { loadLearningPaths } from "@/lib/learning-paths";
 import { getPathProgress, type LearningPath } from "@/lib/plan-builder";
 import { calculateLearningStatistics } from "@/lib/statistics";
+import { loadStreakStatus } from "@/lib/streaks";
+import type { StreakStatus } from "@/lib/streak-calculator";
 
 export default function StatsScreen() {
   const router = useRouter();
   const [paths, setPaths] = useState<LearningPath[]>([]);
   const [loading, setLoading] = useState(true);
+  const [streak, setStreak] = useState<StreakStatus | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    setPaths(await loadLearningPaths());
+    const [nextPaths, nextStreak] = await Promise.all([loadLearningPaths(), loadStreakStatus()]);
+    setPaths(nextPaths);
+    setStreak(nextStreak);
     setLoading(false);
   }, []);
 
@@ -46,6 +51,11 @@ export default function StatsScreen() {
             {loading ? <ActivityIndicator style={styles.loader} color={BRAND.primary} /> : null}
             {paths.length > 0 ? (
               <>
+                <View style={[styles.streakCard, streak?.isActiveToday && styles.streakCardActive]}>
+                  <View style={[styles.streakIcon, streak?.isActiveToday && styles.streakIconActive]}><MaterialCommunityIcons name="fire" size={25} color={streak?.isActiveToday ? "#FFFFFF" : "#E76F22"} /></View>
+                  <View style={styles.streakCopy}><Text style={styles.streakTitle}>{streak?.visibleCurrentStreak ?? 0} {streak?.visibleCurrentStreak === 1 ? "يوم متتالٍ" : "أيام متتالية"}</Text><Text style={styles.streakDescription}>{streak?.message ?? "أنجز مهمة اليوم لتبدأ سلسلة جديدة."}</Text></View>
+                  <View style={styles.bestBadge}><Text style={styles.bestBadgeNumber}>الأفضل {streak?.bestStreak ?? 0}</Text><Text style={styles.bestBadgeLabel}>يومًا</Text></View>
+                </View>
                 <View style={styles.heroCard}>
                   <View style={styles.ring}>
                     <Text style={styles.ringValue}>{stats.overallProgress}%</Text>
@@ -105,6 +115,16 @@ const styles = StyleSheet.create({
   subtitle: { color: BRAND.muted, fontSize: 14, lineHeight: 22, marginTop: 4, textAlign: "right" },
   headerIcon: { width: 54, height: 54, borderRadius: 18, backgroundColor: BRAND.primarySoft, alignItems: "center", justifyContent: "center" },
   loader: { marginVertical: 30 },
+  streakCard: { flexDirection: "row", alignItems: "center", gap: 11, marginBottom: 13, padding: 14, borderWidth: 1, borderColor: "#FAD7B5", borderRadius: 20, backgroundColor: "#FFF8F0" },
+  streakCardActive: { backgroundColor: "#FFF2E1", borderColor: "#F7B870" },
+  streakIcon: { width: 45, height: 45, borderRadius: 15, alignItems: "center", justifyContent: "center", backgroundColor: "#FFE0C0" },
+  streakIconActive: { backgroundColor: "#E76F22" },
+  streakCopy: { flex: 1 },
+  streakTitle: { color: "#9A4A13", fontSize: 15, fontWeight: "900", textAlign: "right" },
+  streakDescription: { color: "#A46537", fontSize: 11, lineHeight: 17, marginTop: 2, textAlign: "right" },
+  bestBadge: { alignItems: "center", minWidth: 49, paddingHorizontal: 6 },
+  bestBadgeNumber: { color: "#9A4A13", fontSize: 11, fontWeight: "900" },
+  bestBadgeLabel: { color: "#A46537", fontSize: 10, marginTop: 1 },
   heroCard: { flexDirection: "row", alignItems: "center", gap: 17, padding: 18, borderRadius: 23, backgroundColor: BRAND.surface, borderWidth: 1, borderColor: BRAND.border },
   ring: { width: 96, height: 96, borderRadius: 48, borderWidth: 9, borderColor: BRAND.primarySoft, alignItems: "center", justifyContent: "center", backgroundColor: "#FBFCFF" },
   ringValue: { color: BRAND.primary, fontSize: 23, fontWeight: "900" },

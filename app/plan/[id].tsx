@@ -10,6 +10,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { BRAND } from "@/constants/brand";
 import { findLearningPath, toggleLearningTask } from "@/lib/learning-paths";
 import { getPathProgress, type LearningPath, type LearningTask } from "@/lib/plan-builder";
+import { recordDailyCompletion } from "@/lib/streaks";
 
 type ListItem =
   | { type: "stage"; id: string; index: number; title: string; description: string }
@@ -40,8 +41,12 @@ export default function PlanDetailsScreen() {
 
   const toggleTask = async (taskId: string) => {
     if (!path) return;
+    const task = path.stages.flatMap((stage) => stage.tasks).find((candidate) => candidate.id === taskId);
     const updated = await toggleLearningTask(path.id, taskId);
     setPath(updated);
+    if (task && !task.completed) {
+      await recordDailyCompletion();
+    }
   };
 
   if (loading) {
