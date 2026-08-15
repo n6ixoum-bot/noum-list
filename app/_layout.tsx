@@ -9,6 +9,7 @@ import { Platform } from "react-native";
 import * as Notifications from "expo-notifications";
 import "@/lib/_core/nativewind-pressable";
 import { ThemeProvider } from "@/lib/theme-provider";
+import { LocaleProvider } from "@/lib/locale-provider";
 import {
   SafeAreaFrameContext,
   SafeAreaInsetsContext,
@@ -112,20 +113,24 @@ export default function RootLayout() {
   if (shouldOverrideSafeArea) {
     return (
       <ThemeProvider>
-        <SafeAreaProvider initialMetrics={providerInitialMetrics}>
+        <LocaleProvider>
+          <SafeAreaProvider initialMetrics={providerInitialMetrics}>
           <SafeAreaFrameContext.Provider value={frame}>
             <SafeAreaInsetsContext.Provider value={insets}>
               {content}
             </SafeAreaInsetsContext.Provider>
           </SafeAreaFrameContext.Provider>
-        </SafeAreaProvider>
-      </ThemeProvider>
+          </SafeAreaProvider>
+        </LocaleProvider>
+        </ThemeProvider>
     );
   }
 
   return (
     <ThemeProvider>
-      <SafeAreaProvider initialMetrics={providerInitialMetrics}>{content}</SafeAreaProvider>
+      <LocaleProvider>
+        <SafeAreaProvider initialMetrics={providerInitialMetrics}>{content}</SafeAreaProvider>
+      </LocaleProvider>
     </ThemeProvider>
   );
 }

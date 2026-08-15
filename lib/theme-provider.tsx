@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Appearance, View, useColorScheme as useSystemColorScheme } from "react-native";
 import { colorScheme as nativewindColorScheme, vars } from "nativewind";
@@ -10,6 +11,7 @@ type ThemeContextValue = {
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
+const THEME_KEY = "noum-list.theme.v1";
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemScheme = useSystemColorScheme() ?? "light";
@@ -32,11 +34,18 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const setColorScheme = useCallback((scheme: ColorScheme) => {
     setColorSchemeState(scheme);
     applyScheme(scheme);
+    void AsyncStorage.setItem(THEME_KEY, scheme);
   }, [applyScheme]);
 
   useEffect(() => {
     applyScheme(colorScheme);
   }, [applyScheme, colorScheme]);
+
+  useEffect(() => {
+    AsyncStorage.getItem(THEME_KEY).then((stored) => {
+      if (stored === "light" || stored === "dark") setColorSchemeState(stored);
+    });
+  }, []);
 
   const themeVariables = useMemo(
     () =>
@@ -61,8 +70,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }),
     [colorScheme, setColorScheme],
   );
-  console.log(value, themeVariables)
-
   return (
     <ThemeContext.Provider value={value}>
       <View style={[{ flex: 1 }, themeVariables]}>{children}</View>

@@ -9,6 +9,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { BRAND } from "@/constants/brand";
 import { loadLearningPaths } from "@/lib/learning-paths";
 import { getFirstOpenTask, getPathProgress, type LearningPath } from "@/lib/plan-builder";
+import { useLocale } from "@/lib/locale-provider";
 
 /**
  * Home Screen - NativeWind Example
@@ -24,6 +25,30 @@ import { getFirstOpenTask, getPathProgress, type LearningPath } from "@/lib/plan
  */
 export default function HomeScreen() {
   const router = useRouter();
+  const { locale } = useLocale();
+  const copy = locale === "en" ? {
+    eyebrow: "Your learning OS",
+    title: "Noum List",
+    subtitle: "Turn any goal into clear steps.",
+    newGoal: "Start a new goal",
+    current: "Current path",
+    completed: "Path completed",
+    next: "Next",
+    emptyTitle: "No path yet",
+    emptyDescription: "Write a goal and we will turn it into short, organized steps.",
+    emptyAction: "Create your first path",
+  } : {
+    eyebrow: "نظامك للتعلّم والمعرفة",
+    title: "Noum List",
+    subtitle: "حوّل أي هدف إلى خطوات واضحة.",
+    newGoal: "ابدأ هدفًا جديدًا",
+    current: "مسارك الحالي",
+    completed: "أتممت هذا المسار",
+    next: "التالي",
+    emptyTitle: "ما عندك مسار بعد",
+    emptyDescription: "اكتب هدفًا تريد تعلّمه، وسنقسّمه إلى خطوات قصيرة ومرتبة.",
+    emptyAction: "أنشئ أول مسار",
+  };
   const [paths, setPaths] = useState<LearningPath[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -49,9 +74,9 @@ export default function HomeScreen() {
           <View>
             <View style={styles.header}>
               <View>
-                <Text style={styles.eyebrow}>رفيقك للتعلّم</Text>
-                <Text style={styles.title}>خطوتي</Text>
-                <Text style={styles.subtitle}>حوّل أي هدف إلى خطوات واضحة.</Text>
+                <Text style={styles.eyebrow}>{copy.eyebrow}</Text>
+                <Text style={styles.title}>{copy.title}</Text>
+                <Text style={styles.subtitle}>{copy.subtitle}</Text>
               </View>
               <View style={styles.headerIcon}>
                 <MaterialCommunityIcons name="compass-rose" size={27} color={BRAND.primary} />
@@ -59,7 +84,7 @@ export default function HomeScreen() {
             </View>
             <TouchableOpacity style={styles.primaryButton} onPress={() => router.push("/create" as any)} activeOpacity={0.86} accessibilityRole="button">
               <MaterialCommunityIcons name="plus" size={21} color="#FFFFFF" />
-              <Text style={styles.primaryButtonText}>ابدأ هدفًا جديدًا</Text>
+              <Text style={styles.primaryButtonText}>{copy.newGoal}</Text>
             </TouchableOpacity>
             {loading ? <ActivityIndicator style={styles.loader} color={BRAND.primary} /> : null}
           </View>
@@ -75,7 +100,7 @@ export default function HomeScreen() {
               accessibilityRole="button"
             >
               <View style={styles.cardTopline}>
-                <Text style={styles.cardLabel}>مسارك الحالي</Text>
+                <Text style={styles.cardLabel}>{copy.current}</Text>
                 <Text style={styles.progressText}>{progress}%</Text>
               </View>
               <Text style={styles.pathTitle}>{item.title}</Text>
@@ -83,12 +108,12 @@ export default function HomeScreen() {
               <ProgressBar value={progress} />
               <View style={styles.nextRow}>
                 <MaterialCommunityIcons name={progress === 100 ? "check-circle" : "arrow-left-bottom"} size={18} color={progress === 100 ? BRAND.success : BRAND.primary} />
-                <Text style={styles.nextText}>{progress === 100 ? "أتممت هذا المسار" : `التالي: ${nextTask?.title ?? "أكمل المراجعة"}`}</Text>
+                <Text style={styles.nextText}>{progress === 100 ? copy.completed : `${copy.next}: ${nextTask?.title ?? (locale === "en" ? "Continue reviewing" : "أكمل المراجعة")}`}</Text>
               </View>
             </TouchableOpacity>
           );
         }}
-        ListEmptyComponent={!loading ? <EmptyState icon="map-marker-path" title="ما عندك مسار بعد" description="اكتب هدفًا تريد تعلّمه، وسنقسّمه إلى مهام قصيرة ومصادر مرتبة." actionLabel="أنشئ أول مسار" onAction={() => router.push("/create" as any)} /> : null}
+        ListEmptyComponent={!loading ? <EmptyState icon="map-marker-path" title={copy.emptyTitle} description={copy.emptyDescription} actionLabel={copy.emptyAction} onAction={() => router.push("/create" as any)} /> : null}
       />
     </ScreenContainer>
   );

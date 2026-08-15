@@ -5,9 +5,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { HapticTab } from "@/components/haptic-tab";
 import { BRAND } from "@/constants/brand";
 import { Platform } from "react-native";
+import { useLocale } from "@/lib/locale-provider";
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
+  const { t } = useLocale();
   const bottomPadding = Platform.OS === "web" ? 12 : Math.max(insets.bottom, 8);
   const tabBarHeight = 56 + bottomPadding;
 
@@ -31,28 +33,42 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "الرئيسية",
+          title: t("home"),
           tabBarIcon: ({ color, size }) => <MaterialCommunityIcons size={size} name="home-variant-outline" color={color} />,
         }}
       />
       <Tabs.Screen
         name="library"
         options={{
-          title: "مكتبتي",
+          title: t("library"),
           tabBarIcon: ({ color, size }) => <MaterialCommunityIcons size={size} name="bookshelf" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="notes"
+        options={{
+          title: t("notes"),
+          tabBarIcon: ({ color, size }) => <MaterialCommunityIcons size={size} name="brain" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="focus"
+        options={{
+          title: t("focus"),
+          tabBarIcon: ({ color, size }) => <MaterialCommunityIcons size={size} name="timer-outline" color={color} />,
         }}
       />
       <Tabs.Screen
         name="stats"
         options={{
-          title: "إحصائيات",
+          title: t("stats"),
           tabBarIcon: ({ color, size }) => <MaterialCommunityIcons size={size} name="chart-donut-variant" color={color} />,
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
-          title: "الإعدادات",
+          title: t("settings"),
           tabBarIcon: ({ color, size }) => <MaterialCommunityIcons size={size} name="cog-outline" color={color} />,
         }}
       />

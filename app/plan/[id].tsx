@@ -11,6 +11,7 @@ import { BRAND } from "@/constants/brand";
 import { findLearningPath, toggleLearningTask } from "@/lib/learning-paths";
 import { getPathProgress, type LearningPath, type LearningTask } from "@/lib/plan-builder";
 import { recordDailyCompletion } from "@/lib/streaks";
+import { awardTaskXp, loadKnowledgeNotes, type KnowledgeNote } from "@/lib/noum-core";
 
 type ListItem =
   | { type: "stage"; id: string; index: number; title: string; description: string }
@@ -21,11 +22,14 @@ export default function PlanDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [path, setPath] = useState<LearningPath | null>(null);
   const [loading, setLoading] = useState(true);
+  const [relatedNotes, setRelatedNotes] = useState<KnowledgeNote[]>([]);
 
   const refresh = useCallback(async () => {
     if (!id) return;
     setLoading(true);
-    setPath(await findLearningPath(id));
+    const [nextPath, notes] = await Promise.all([findLearningPath(id), loadKnowledgeNotes()]);
+    setPath(nextPath);
+    setRelatedNotes(notes.filter((note) => note.linkedPathIds.includes(id)));
     setLoading(false);
   }, [id]);
 
@@ -45,7 +49,7 @@ export default function PlanDetailsScreen() {
     const updated = await toggleLearningTask(path.id, taskId);
     setPath(updated);
     if (task && !task.completed) {
-      await recordDailyCompletion();
+      await Promise.all([recordDailyCompletion(), awardTaskXp(task.id, Math.max(15, Math.min(50, task.durationMinutes)))]);
     }
   };
 
@@ -77,6 +81,7 @@ export default function PlanDetailsScreen() {
               <View style={styles.stats}><View style={styles.stat}><MaterialCommunityIcons name="calendar-range-outline" size={17} color={BRAND.primary} /><Text style={styles.statText}>{path.durationWeeks === 2 ? "أسبوعان" : "4 أسابيع"}</Text></View><View style={styles.stat}><MaterialCommunityIcons name="signal-cellular-2" size={17} color={BRAND.primary} /><Text style={styles.statText}>{path.level}</Text></View></View>
               <View style={styles.progressHeading}><Text style={styles.progressTitle}>تقدمك</Text><Text style={styles.progressValue}>{progress}%</Text></View>
               <ProgressBar value={progress} />
+              {relatedNotes.length > 0 ? <View style={styles.relatedNotes}><MaterialCommunityIcons name="notebook-outline" size={16} color={BRAND.primary} /><Text style={styles.relatedNotesText}>{relatedNotes.length} ملاحظة مرتبطة بهذا المسار</Text></View> : null}
             </View>
           </View>
         }
@@ -124,6 +129,8 @@ const styles = StyleSheet.create({
   progressHeading: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 18, marginBottom: 8 },
   progressTitle: { color: BRAND.text, fontSize: 13, fontWeight: "800" },
   progressValue: { color: BRAND.primary, fontSize: 13, fontWeight: "900" },
+  relatedNotes: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-end", marginTop: 13, paddingHorizontal: 9, paddingVertical: 6, borderRadius: 9, backgroundColor: BRAND.primarySoft },
+  relatedNotesText: { color: BRAND.primary, fontSize: 11, fontWeight: "800" },
   stageHeader: { flexDirection: "row", gap: 11, alignItems: "flex-start", marginTop: 3, marginBottom: 10 },
   stageNumber: { width: 28, height: 28, borderRadius: 14, backgroundColor: BRAND.primary, alignItems: "center", justifyContent: "center", marginTop: 1 },
   stageNumberText: { color: "#FFFFFF", fontSize: 13, fontWeight: "900" },

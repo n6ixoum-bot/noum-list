@@ -8,6 +8,8 @@ import { BRAND } from "@/constants/brand";
 import { clearLearningPaths } from "@/lib/learning-paths";
 import { disableDailyReminder, loadReminderSettings, scheduleDailyReminder, updateReminderTime } from "@/lib/reminders";
 import { formatReminderTime, type ReminderSettings } from "@/lib/reminder-utils";
+import { useLocale } from "@/lib/locale-provider";
+import { useThemeContext } from "@/lib/theme-provider";
 
 const timeChoices = [
   { hour: 18, minute: 0 },
@@ -17,6 +19,8 @@ const timeChoices = [
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const { locale, setLocale, t } = useLocale();
+  const { colorScheme, setColorScheme } = useThemeContext();
   const [reminder, setReminder] = useState<ReminderSettings | null>(null);
   const [savingReminder, setSavingReminder] = useState(false);
   const [reminderMessage, setReminderMessage] = useState<string | null>(null);
@@ -63,8 +67,8 @@ export default function SettingsScreen() {
   return (
     <ScreenContainer>
       <View style={styles.content}>
-        <Text style={styles.title}>الإعدادات</Text>
-        <Text style={styles.subtitle}>نسخة بسيطة تحفظ بياناتك على الهاتف فقط.</Text>
+        <Text style={styles.title}>{t("settings")}</Text>
+        <Text style={styles.subtitle}>{t("privacy")}</Text>
 
         <View style={styles.card}>
           <View style={styles.row}>
@@ -75,6 +79,23 @@ export default function SettingsScreen() {
           <View style={styles.row}>
             <View style={styles.iconWrap}><MaterialCommunityIcons name="cellphone-lock" size={21} color={BRAND.primary} /></View>
             <View style={styles.rowText}><Text style={styles.rowTitle}>خصوصية البيانات</Text><Text style={styles.rowDescription}>مساراتك وتقدّمك محفوظة محليًا</Text></View>
+          </View>
+        </View>
+
+        <View style={styles.preferenceCard}>
+          <View style={styles.preferenceRow}>
+            <View style={styles.iconWrap}><MaterialCommunityIcons name="translate" size={21} color={BRAND.primary} /></View>
+            <View style={styles.rowText}><Text style={styles.rowTitle}>{t("language")}</Text><Text style={styles.rowDescription}>{locale === "ar" ? "العربية" : "English"}</Text></View>
+          </View>
+          <View style={styles.languageChoices}>
+            <TouchableOpacity style={[styles.languageChoice, locale === "ar" && styles.languageChoiceSelected]} onPress={() => setLocale("ar")} activeOpacity={0.8}><Text style={[styles.languageChoiceText, locale === "ar" && styles.languageChoiceTextSelected]}>{t("arabic")}</Text></TouchableOpacity>
+            <TouchableOpacity style={[styles.languageChoice, locale === "en" && styles.languageChoiceSelected]} onPress={() => setLocale("en")} activeOpacity={0.8}><Text style={[styles.languageChoiceText, locale === "en" && styles.languageChoiceTextSelected]}>{t("english")}</Text></TouchableOpacity>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.preferenceRow}>
+            <Switch value={colorScheme === "dark"} onValueChange={(value) => setColorScheme(value ? "dark" : "light")} trackColor={{ false: "#CBD5E1", true: "#245A3A" }} thumbColor={colorScheme === "dark" ? BRAND.primary : "#FFFFFF"} />
+            <View style={styles.rowText}><Text style={styles.rowTitle}>{t("darkMode")}</Text><Text style={styles.rowDescription}>{t("darkModeDescription")}</Text></View>
+            <View style={styles.iconWrap}><MaterialCommunityIcons name="theme-light-dark" size={21} color={BRAND.primary} /></View>
           </View>
         </View>
 
@@ -132,6 +153,13 @@ const styles = StyleSheet.create({
   divider: { height: 1, backgroundColor: BRAND.border, marginVertical: 15 },
   dangerButton: { flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center", minHeight: 50, marginTop: 20, borderWidth: 1, borderColor: "#F5C7CC", borderRadius: 16, backgroundColor: "#FFF7F8" },
   dangerText: { color: BRAND.danger, fontWeight: "800", fontSize: 14 },
+  preferenceCard: { marginTop: 16, padding: 16, borderWidth: 1, borderColor: BRAND.border, borderRadius: 21, backgroundColor: BRAND.surface },
+  preferenceRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  languageChoices: { flexDirection: "row", gap: 8, marginTop: 12 },
+  languageChoice: { flex: 1, minHeight: 39, borderWidth: 1, borderColor: BRAND.border, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: BRAND.background },
+  languageChoiceSelected: { borderColor: BRAND.primary, backgroundColor: BRAND.primarySoft },
+  languageChoiceText: { color: BRAND.muted, fontSize: 12, fontWeight: "800" },
+  languageChoiceTextSelected: { color: BRAND.primary },
   reminderCard: { marginTop: 16, padding: 16, borderWidth: 1, borderColor: BRAND.border, borderRadius: 21, backgroundColor: BRAND.surface },
   reminderHeader: { flexDirection: "row", alignItems: "center", gap: 11 },
   reminderIcon: { width: 42, height: 42, borderRadius: 14, backgroundColor: BRAND.primarySoft, alignItems: "center", justifyContent: "center" },

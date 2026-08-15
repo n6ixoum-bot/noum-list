@@ -11,6 +11,7 @@ import { loadLearningPaths } from "@/lib/learning-paths";
 import { getPathProgress, type LearningPath } from "@/lib/plan-builder";
 import { calculateLearningStatistics } from "@/lib/statistics";
 import { loadStreakStatus } from "@/lib/streaks";
+import { getLevelFromXp, getLevelProgress, loadFocusSessions, loadProfile } from "@/lib/noum-core";
 import type { StreakStatus } from "@/lib/streak-calculator";
 
 export default function StatsScreen() {
@@ -18,12 +19,16 @@ export default function StatsScreen() {
   const [paths, setPaths] = useState<LearningPath[]>([]);
   const [loading, setLoading] = useState(true);
   const [streak, setStreak] = useState<StreakStatus | null>(null);
+  const [xp, setXp] = useState(0);
+  const [focusMinutes, setFocusMinutes] = useState(0);
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    const [nextPaths, nextStreak] = await Promise.all([loadLearningPaths(), loadStreakStatus()]);
+    const [nextPaths, nextStreak, profile, sessions] = await Promise.all([loadLearningPaths(), loadStreakStatus(), loadProfile(), loadFocusSessions()]);
     setPaths(nextPaths);
     setStreak(nextStreak);
+    setXp(profile.xp);
+    setFocusMinutes(sessions.reduce((sum, session) => sum + session.minutes, 0));
     setLoading(false);
   }, []);
 
@@ -56,6 +61,7 @@ export default function StatsScreen() {
                   <View style={styles.streakCopy}><Text style={styles.streakTitle}>{streak?.visibleCurrentStreak ?? 0} {streak?.visibleCurrentStreak === 1 ? "يوم متتالٍ" : "أيام متتالية"}</Text><Text style={styles.streakDescription}>{streak?.message ?? "أنجز مهمة اليوم لتبدأ سلسلة جديدة."}</Text></View>
                   <View style={styles.bestBadge}><Text style={styles.bestBadgeNumber}>الأفضل {streak?.bestStreak ?? 0}</Text><Text style={styles.bestBadgeLabel}>يومًا</Text></View>
                 </View>
+                <View style={styles.gamificationCard}><View style={styles.levelCircle}><Text style={styles.levelNumber}>{getLevelFromXp(xp)}</Text><Text style={styles.levelLabel}>LVL</Text></View><View style={styles.gamificationCopy}><Text style={styles.gamificationTitle}>المستوى {getLevelFromXp(xp)} · {xp} XP</Text><Text style={styles.gamificationDescription}>{getLevelProgress(xp)}/100 XP للمستوى التالي · {Math.round(focusMinutes / 60 * 10) / 10} ساعة تركيز</Text><ProgressBar value={getLevelProgress(xp)} /></View></View>
                 <View style={styles.heroCard}>
                   <View style={styles.ring}>
                     <Text style={styles.ringValue}>{stats.overallProgress}%</Text>
@@ -125,6 +131,13 @@ const styles = StyleSheet.create({
   bestBadge: { alignItems: "center", minWidth: 49, paddingHorizontal: 6 },
   bestBadgeNumber: { color: "#9A4A13", fontSize: 11, fontWeight: "900" },
   bestBadgeLabel: { color: "#A46537", fontSize: 10, marginTop: 1 },
+  gamificationCard: { flexDirection: "row", alignItems: "center", gap: 13, marginBottom: 13, padding: 15, borderRadius: 21, backgroundColor: BRAND.text },
+  levelCircle: { width: 55, height: 55, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: BRAND.primary },
+  levelNumber: { color: "#FFFFFF", fontSize: 20, fontWeight: "900" },
+  levelLabel: { color: "#DDFBE7", fontSize: 8, fontWeight: "900", marginTop: -2 },
+  gamificationCopy: { flex: 1, gap: 7 },
+  gamificationTitle: { color: "#FFFFFF", fontSize: 14, fontWeight: "900", textAlign: "right" },
+  gamificationDescription: { color: "#B9D9C4", fontSize: 11, lineHeight: 17, textAlign: "right" },
   heroCard: { flexDirection: "row", alignItems: "center", gap: 17, padding: 18, borderRadius: 23, backgroundColor: BRAND.surface, borderWidth: 1, borderColor: BRAND.border },
   ring: { width: 96, height: 96, borderRadius: 48, borderWidth: 9, borderColor: BRAND.primarySoft, alignItems: "center", justifyContent: "center", backgroundColor: "#FBFCFF" },
   ringValue: { color: BRAND.primary, fontSize: 23, fontWeight: "900" },
