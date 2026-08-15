@@ -85,6 +85,25 @@ export const appRouter = router({
       }),
   }),
 
+  books: router({
+    generateQuestions: publicProcedure
+      .input(z.object({ title: z.string().trim().min(1).max(160), summary: z.string().trim().min(20).max(2000) }))
+      .mutation(async ({ input }) => {
+        const response = await invokeLLM({
+          model: "gpt-5-mini",
+          messages: [
+            { role: "system", content: "أنت مساعد قراءة عربي. بناءً على عنوان الكتاب والملخص الذي يقدمه المستخدم فقط، أنشئ 3 إلى 6 أسئلة مراجعة عميقة وقصيرة مع تلميح صغير لكل سؤال. لا تخترع معلومات غير موجودة في الملخص. أعد JSON صحيحًا فقط من دون Markdown بالشكل: {\"summary\":\"string\",\"questions\":[{\"question\":\"string\",\"hint\":\"string\"}]}" },
+            { role: "user", content: `عنوان الكتاب: ${input.title}\nملخص القارئ: ${input.summary}` },
+          ],
+          toolChoice: "none",
+        });
+        const content = response.choices[0]?.message.content;
+        if (typeof content !== "string") throw new Error("لم يصل تحليل صالح للكتاب.");
+        const normalized = content.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+        return z.object({ summary: z.string().min(1).max(2000), questions: z.array(z.object({ question: z.string().min(3).max(260), hint: z.string().min(3).max(260) })).min(3).max(6) }).parse(JSON.parse(normalized));
+      }),
+  }),
+
   // TODO: add feature routers here, e.g.
   // todo: router({
   //   list: protectedProcedure.query(({ ctx }) =>

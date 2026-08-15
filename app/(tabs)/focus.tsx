@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { ScreenContainer } from "@/components/screen-container";
+import { FocusSoundControl } from "@/components/focus-sound";
 import { BRAND } from "@/constants/brand";
 import { loadLearningPaths } from "@/lib/learning-paths";
 import { saveFocusSession } from "@/lib/noum-core";
@@ -73,6 +74,7 @@ export default function FocusScreen() {
               <View style={styles.controlRow}><TouchableOpacity style={styles.resetButton} onPress={reset} activeOpacity={0.8}><MaterialCommunityIcons name="restart" size={20} color={BRAND.muted} /></TouchableOpacity><TouchableOpacity style={styles.startButton} onPress={() => setRunning((value) => !value)} activeOpacity={0.86}><MaterialCommunityIcons name={running ? "pause" : "play"} size={20} color="#FFFFFF" /><Text style={styles.startText}>{running ? "إيقاف مؤقت" : remaining === 0 ? "ابدأ من جديد" : "ابدأ الجلسة"}</Text></TouchableOpacity></View>
               {message ? <Text style={styles.message}>{message}</Text> : null}
             </View>
+            <FocusSoundControl />
             <Text style={styles.sectionTitle}>اربط الجلسة بمسار</Text>
             <TouchableOpacity style={[styles.pathChoice, pathId === null && styles.pathChoiceSelected]} onPress={() => setPathId(null)} activeOpacity={0.8}><MaterialCommunityIcons name="inbox-arrow-down-outline" size={19} color={pathId === null ? BRAND.primary : BRAND.muted} /><Text style={[styles.pathChoiceText, pathId === null && styles.pathChoiceTextSelected]}>جلسة عامة</Text></TouchableOpacity>
             {loading ? <ActivityIndicator style={styles.loader} color={BRAND.primary} /> : null}

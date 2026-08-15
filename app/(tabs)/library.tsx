@@ -31,7 +31,7 @@ export default function LibraryScreen() {
         contentContainerStyle={styles.content}
         refreshing={loading}
         onRefresh={() => void refresh()}
-        ListHeaderComponent={<View style={styles.header}><Text style={styles.title}>مكتبتي</Text><Text style={styles.subtitle}>كل المسارات التي أنشأتها محفوظة على جهازك.</Text></View>}
+        ListHeaderComponent={<View style={styles.header}><Text style={styles.title}>مكتبتي</Text><Text style={styles.subtitle}>كل المسارات والمعرفة التي تحفظها على جهازك.</Text><View style={styles.shortcuts}><TouchableOpacity style={styles.shortcut} onPress={() => router.push("/books" as any)} activeOpacity={0.82}><View style={styles.shortcutIcon}><MaterialCommunityIcons name="book-open-page-variant" size={21} color={BRAND.primary} /></View><View style={styles.shortcutCopy}><Text style={styles.shortcutTitle}>كتبي PDF</Text><Text style={styles.shortcutText}>قراءة وأسئلة</Text></View><MaterialCommunityIcons name="chevron-left" size={20} color={BRAND.muted} /></TouchableOpacity><TouchableOpacity style={styles.shortcut} onPress={() => router.push("/languages" as any)} activeOpacity={0.82}><View style={styles.shortcutIcon}><MaterialCommunityIcons name="translate" size={21} color={BRAND.primary} /></View><View style={styles.shortcutCopy}><Text style={styles.shortcutTitle}>تعلم لغة</Text><Text style={styles.shortcutText}>خطة من الصفر</Text></View><MaterialCommunityIcons name="chevron-left" size={20} color={BRAND.muted} /></TouchableOpacity></View></View>}
         ListEmptyComponent={loading ? <ActivityIndicator style={styles.loader} color={BRAND.primary} /> : <EmptyState icon="bookshelf" title="مكتبتك فارغة" description="أنشئ مسار تعلم جديدًا وسيظهر هنا لتكمل منه في أي وقت." actionLabel="ابدأ هدفًا" onAction={() => router.push("/create" as any)} />}
         ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         renderItem={({ item }) => {
@@ -56,6 +56,12 @@ const styles = StyleSheet.create({
   header: { marginBottom: 22 },
   title: { color: BRAND.text, fontSize: 29, lineHeight: 38, fontWeight: "900", textAlign: "right" },
   subtitle: { color: BRAND.muted, fontSize: 14, lineHeight: 22, marginTop: 4, textAlign: "right" },
+  shortcuts: { gap: 10, marginTop: 17 },
+  shortcut: { minHeight: 62, flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 13, borderRadius: 17, borderWidth: 1, borderColor: BRAND.border, backgroundColor: BRAND.surface },
+  shortcutIcon: { width: 39, height: 39, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: BRAND.primarySoft },
+  shortcutCopy: { flex: 1 },
+  shortcutTitle: { color: BRAND.text, fontSize: 14, fontWeight: "900", textAlign: "right" },
+  shortcutText: { color: BRAND.muted, fontSize: 11, textAlign: "right", marginTop: 2 },
   loader: { marginTop: 40 },
   card: { borderRadius: 20, backgroundColor: BRAND.surface, borderWidth: 1, borderColor: BRAND.border, padding: 16 },
   cardHeading: { flexDirection: "row", alignItems: "center", gap: 12 },
