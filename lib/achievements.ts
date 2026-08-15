@@ -8,3 +8,16 @@ export function getAchievements(input: { xp: number; focusMinutes: number; revie
     { id: "streak-seven", title: "ثابت", description: "حافظ على 7 أيام متتالية", icon: "fire", unlocked: input.streak >= 7 },
   ];
 }
+
+export async function loadSeenAchievementIds() {
+  const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+  const raw = await AsyncStorage.getItem("noum-list.seen-achievements.v1");
+  if (!raw) return [] as string[];
+  try { return JSON.parse(raw) as string[]; } catch { return []; }
+}
+
+export async function markAchievementSeen(id: string) {
+  const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+  const existing = await loadSeenAchievementIds();
+  if (!existing.includes(id)) await AsyncStorage.setItem("noum-list.seen-achievements.v1", JSON.stringify([...existing, id]));
+}

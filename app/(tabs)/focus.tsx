@@ -5,6 +5,8 @@ import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View }
 
 import { ScreenContainer } from "@/components/screen-container";
 import { FocusSoundControl } from "@/components/focus-sound";
+import { FocusTimerMotion } from "@/components/focus-timer-motion";
+import { CelebrationOverlay } from "@/components/celebration-overlay";
 import { BRAND } from "@/constants/brand";
 import { loadLearningPaths } from "@/lib/learning-paths";
 import { saveFocusSession } from "@/lib/noum-core";
@@ -22,6 +24,7 @@ export default function FocusScreen() {
   const [pathId, setPathId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [completed, setCompleted] = useState(false);
 
   useFocusEffect(useCallback(() => {
     loadLearningPaths().then((next) => { setPaths(next); setLoading(false); });
@@ -34,7 +37,7 @@ export default function FocusScreen() {
         if (value <= 1) {
           clearInterval(interval);
           setRunning(false);
-          void saveFocusSession(pathId, minutes).then(async (session) => { await awardActivityXp(session.id, Math.max(10, minutes)); haptic.success(); setMessage(`أحسنت. سجلت ${minutes} دقيقة وكسَبت XP.`); });
+          void saveFocusSession(pathId, minutes).then(async (session) => { await awardActivityXp(session.id, Math.max(10, minutes)); haptic.success(); setMessage(`أحسنت. سجلت ${minutes} دقيقة وكسَبت XP.`); setCompleted(true); });
           return 0;
         }
         return value - 1;
@@ -59,23 +62,28 @@ export default function FocusScreen() {
     setMessage(null);
   };
 
+  const toggleRunning = () => {
+    if (remaining === 0) setRemaining(minutes * 60);
+    setRunning((value) => { const next = !value; if (next) haptic.light(); return next; });
+  };
+
   return (
     <ScreenContainer>
-      <FlatList
+      <><FlatList
         data={paths}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.content}
         ListHeaderComponent={
           <View>
             <View style={styles.header}><View><Text style={styles.title}>تركيز عميق</Text><Text style={styles.subtitle}>جلسة واحدة بلا تشتيت تقرّبك من هدفك.</Text></View><View style={styles.headerIcon}><MaterialCommunityIcons name="brain" size={27} color={BRAND.primary} /></View></View>
-            <View style={styles.timerCard}>
+            <FocusTimerMotion active={running}><View style={[styles.timerCard, running && styles.timerCardActive]}>
               <Text style={styles.timerLabel}>{selectedPath?.title ?? "جلسة عامة"}</Text>
               <Text style={styles.timer}>{displayTime}</Text>
               <Text style={styles.timerHint}>{running ? "ركّز على خطوة واحدة فقط" : "اختر مدة ثم ابدأ"}</Text>
               <View style={styles.durationRow}>{durations.map((value) => <TouchableOpacity key={value} style={[styles.durationChip, minutes === value && styles.durationChipSelected]} onPress={() => chooseDuration(value)} activeOpacity={0.8}><Text style={[styles.durationText, minutes === value && styles.durationTextSelected]}>{value} د</Text></TouchableOpacity>)}</View>
-              <View style={styles.controlRow}><TouchableOpacity style={styles.resetButton} onPress={reset} activeOpacity={0.8}><MaterialCommunityIcons name="restart" size={20} color={BRAND.muted} /></TouchableOpacity><TouchableOpacity style={styles.startButton} onPress={() => setRunning((value) => !value)} activeOpacity={0.86}><MaterialCommunityIcons name={running ? "pause" : "play"} size={20} color="#FFFFFF" /><Text style={styles.startText}>{running ? "إيقاف مؤقت" : remaining === 0 ? "ابدأ من جديد" : "ابدأ الجلسة"}</Text></TouchableOpacity></View>
+              <View style={styles.controlRow}><TouchableOpacity style={styles.resetButton} onPress={reset} activeOpacity={0.8}><MaterialCommunityIcons name="restart" size={20} color={BRAND.muted} /></TouchableOpacity><TouchableOpacity style={styles.startButton} onPress={toggleRunning} activeOpacity={0.86}><MaterialCommunityIcons name={running ? "pause" : "play"} size={20} color="#FFFFFF" /><Text style={styles.startText}>{running ? "إيقاف مؤقت" : remaining === 0 ? "ابدأ من جديد" : "ابدأ الجلسة"}</Text></TouchableOpacity></View>
               {message ? <Text style={styles.message}>{message}</Text> : null}
-            </View>
+            </View></FocusTimerMotion>
             <FocusSoundControl />
             <Text style={styles.sectionTitle}>اربط الجلسة بمسار</Text>
             <TouchableOpacity style={[styles.pathChoice, pathId === null && styles.pathChoiceSelected]} onPress={() => setPathId(null)} activeOpacity={0.8}><MaterialCommunityIcons name="inbox-arrow-down-outline" size={19} color={pathId === null ? BRAND.primary : BRAND.muted} /><Text style={[styles.pathChoiceText, pathId === null && styles.pathChoiceTextSelected]}>جلسة عامة</Text></TouchableOpacity>
@@ -83,7 +91,7 @@ export default function FocusScreen() {
           </View>
         }
         renderItem={({ item }) => <TouchableOpacity style={[styles.pathChoice, pathId === item.id && styles.pathChoiceSelected]} onPress={() => setPathId(item.id)} activeOpacity={0.8}><MaterialCommunityIcons name="target" size={19} color={pathId === item.id ? BRAND.primary : BRAND.muted} /><Text style={[styles.pathChoiceText, pathId === item.id && styles.pathChoiceTextSelected]}>{item.title}</Text></TouchableOpacity>}
-      />
+      /><CelebrationOverlay visible={completed} title="جلسة تركيز مكتملة" message={`أتممت ${minutes} دقيقة من التركيز العميق وكسبت نقاط خبرة.`} icon="timer-check-outline" onDismiss={() => setCompleted(false)} /></>
     </ScreenContainer>
   );
 }
@@ -95,6 +103,7 @@ const styles = StyleSheet.create({
   subtitle: { color: BRAND.muted, fontSize: 14, lineHeight: 22, marginTop: 4, textAlign: "right" },
   headerIcon: { width: 54, height: 54, borderRadius: 18, backgroundColor: BRAND.primarySoft, alignItems: "center", justifyContent: "center" },
   timerCard: { padding: 20, borderRadius: 26, backgroundColor: BRAND.surface, borderWidth: 1, borderColor: BRAND.border, alignItems: "center" },
+  timerCardActive: { borderColor: BRAND.primary, backgroundColor: "#102219" },
   timerLabel: { color: BRAND.primary, fontSize: 13, fontWeight: "900" },
   timer: { color: BRAND.text, fontSize: 65, lineHeight: 78, fontWeight: "900", letterSpacing: 2, marginTop: 9 },
   timerHint: { color: BRAND.muted, fontSize: 13 },

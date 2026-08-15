@@ -14,6 +14,9 @@ import { loadStreakStatus } from "@/lib/streaks";
 import { getLevelFromXp, getLevelProgress, loadFocusSessions, loadProfile } from "@/lib/noum-core";
 import { loadFlashcardReviews } from "@/lib/flashcards";
 import { getAchievements } from "@/lib/achievements";
+import { loadSeenAchievementIds, markAchievementSeen, type Achievement } from "@/lib/achievements";
+import { CelebrationOverlay } from "@/components/celebration-overlay";
+import { haptic } from "@/lib/haptics";
 import type { StreakStatus } from "@/lib/streak-calculator";
 
 export default function StatsScreen() {
@@ -24,6 +27,7 @@ export default function StatsScreen() {
   const [xp, setXp] = useState(0);
   const [focusMinutes, setFocusMinutes] = useState(0);
   const [reviewCount, setReviewCount] = useState(0);
+  const [celebration, setCelebration] = useState<Achievement | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -33,6 +37,11 @@ export default function StatsScreen() {
     setXp(profile.xp);
     setFocusMinutes(sessions.reduce((sum, session) => sum + session.minutes, 0));
     setReviewCount(reviews.length);
+    const focusTotal = sessions.reduce((sum, session) => sum + session.minutes, 0);
+    const newlyUnlocked = getAchievements({ xp: profile.xp, focusMinutes: focusTotal, reviewCount: reviews.length, streak: nextStreak.bestStreak });
+    const seen = await loadSeenAchievementIds();
+    const fresh = newlyUnlocked.find((badge) => badge.unlocked && !seen.includes(badge.id));
+    if (fresh) { setCelebration(fresh); haptic.success(); }
     setLoading(false);
   }, []);
 
@@ -42,7 +51,7 @@ export default function StatsScreen() {
 
   return (
     <ScreenContainer>
-      <FlatList
+      <><FlatList
         data={paths}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.content}
@@ -104,7 +113,7 @@ export default function StatsScreen() {
             </TouchableOpacity>
           );
         }}
-      />
+      /><CelebrationOverlay visible={celebration !== null} title={celebration ? `شارة جديدة: ${celebration.title}` : ""} message={celebration?.description ?? ""} icon={(celebration?.icon ?? "trophy-outline") as any} onDismiss={() => { if (celebration) void markAchievementSeen(celebration.id); setCelebration(null); }} /></>
     </ScreenContainer>
   );
 }
