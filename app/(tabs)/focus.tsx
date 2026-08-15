@@ -8,9 +8,11 @@ import { FocusSoundControl } from "@/components/focus-sound";
 import { BRAND } from "@/constants/brand";
 import { loadLearningPaths } from "@/lib/learning-paths";
 import { saveFocusSession } from "@/lib/noum-core";
+import { awardActivityXp } from "@/lib/noum-core";
+import { haptic } from "@/lib/haptics";
 import type { LearningPath } from "@/lib/plan-builder";
 
-const durations = [25, 45, 60];
+const durations = [15, 25, 50, 90];
 
 export default function FocusScreen() {
   const [paths, setPaths] = useState<LearningPath[]>([]);
@@ -32,7 +34,7 @@ export default function FocusScreen() {
         if (value <= 1) {
           clearInterval(interval);
           setRunning(false);
-          void saveFocusSession(pathId, minutes).then(() => setMessage("أحسنت. سُجلت جلسة التركيز في إنجازاتك."));
+          void saveFocusSession(pathId, minutes).then(async (session) => { await awardActivityXp(session.id, Math.max(10, minutes)); haptic.success(); setMessage(`أحسنت. سجلت ${minutes} دقيقة وكسَبت XP.`); });
           return 0;
         }
         return value - 1;

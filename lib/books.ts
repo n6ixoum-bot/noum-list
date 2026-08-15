@@ -19,6 +19,7 @@ export type LocalBook = {
   addedAt: string;
   analysisSource: string;
   questions: BookQuestion[];
+  readingNote: string;
 };
 
 const BOOKS_KEY = "noum-list.local-books.v1";
@@ -64,6 +65,7 @@ export async function importPdfBook() {
     addedAt: new Date().toISOString(),
     analysisSource: "",
     questions: [],
+    readingNote: "",
   };
   const books = await loadBooks();
   await saveBooks([book, ...books]);

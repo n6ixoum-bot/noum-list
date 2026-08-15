@@ -2,11 +2,15 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import { Alert, FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import * as Speech from "expo-speech";
 
 import { ProgressBar } from "@/components/progress-bar";
 import { ScreenContainer } from "@/components/screen-container";
 import { BRAND } from "@/constants/brand";
-import { createFlashcard, getDueCards, loadFlashcards, reviewFlashcard, type Flashcard, type ReviewRating } from "@/lib/flashcards";
+import { createFlashcard, getDueCards, getWeeklyReviewCount, loadFlashcardReviews, loadFlashcards, reviewFlashcard, type Flashcard, type FlashcardReview, type ReviewRating } from "@/lib/flashcards";
+import { importStarterVocabulary } from "@/lib/starter-vocabulary";
+import { awardActivityXp } from "@/lib/noum-core";
+import { haptic } from "@/lib/haptics";
 
 const languages = ["English", "Spanish", "Turkish", "German"];
 const ratings: Array<{ key: ReviewRating; label: string; color: string }> = [
@@ -19,6 +23,7 @@ const ratings: Array<{ key: ReviewRating; label: string; color: string }> = [
 export default function FlashcardsScreen() {
   const router = useRouter();
   const [cards, setCards] = useState<Flashcard[]>([]);
+  const [reviews, setReviews] = useState<FlashcardReview[]>([]);
   const [front, setFront] = useState("");
   const [back, setBack] = useState("");
   const [language, setLanguage] = useState("English");
@@ -26,10 +31,14 @@ export default function FlashcardsScreen() {
   const [reviewIndex, setReviewIndex] = useState(0);
   const [creatorOpen, setCreatorOpen] = useState(false);
 
-  const refresh = useCallback(async () => setCards(await loadFlashcards()), []);
+  const refresh = useCallback(async () => {
+    const [nextCards, nextReviews] = await Promise.all([loadFlashcards(), loadFlashcardReviews()]);
+    setCards(nextCards); setReviews(nextReviews);
+  }, []);
   useFocusEffect(useCallback(() => { void refresh(); }, [refresh]));
   const dueCards = useMemo(() => getDueCards(cards), [cards]);
   const activeCard = dueCards[reviewIndex] ?? null;
+  const weeklyReviews = useMemo(() => getWeeklyReviewCount(reviews), [reviews]);
 
   const addCard = async () => {
     if (!front.trim() || !back.trim()) { Alert.alert("أكمل البطاقة", "اكتب المفردة ومعناها أو شرحها أولًا."); return; }
@@ -40,9 +49,24 @@ export default function FlashcardsScreen() {
   const rateCard = async (rating: ReviewRating) => {
     if (!activeCard) return;
     await reviewFlashcard(activeCard.id, rating);
+    await awardActivityXp(`review-${activeCard.id}-${new Date().toDateString()}`, 5);
+    haptic.light();
     setShowAnswer(false);
     setReviewIndex(0);
     await refresh();
+  };
+
+  const importPack = async () => {
+    const added = await importStarterVocabulary(language);
+    await refresh();
+    Alert.alert("حزمة البداية", added > 0 ? `تمت إضافة ${added} مفردات إلى بطاقات ${language}.` : "هذه المفردات موجودة عندك بالفعل.");
+  };
+
+  const speakActiveCard = async () => {
+    if (!activeCard) return;
+    if (await Speech.isSpeakingAsync()) await Speech.stop();
+    const locale = activeCard.language === "English" ? "en-US" : activeCard.language === "Spanish" ? "es-ES" : activeCard.language === "Turkish" ? "tr-TR" : activeCard.language === "German" ? "de-DE" : "en-US";
+    Speech.speak(activeCard.front, { language: locale, rate: 0.78, pitch: 1.0 });
   };
 
   return (
@@ -51,7 +75,7 @@ export default function FlashcardsScreen() {
         data={cards.slice(0, 8)}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.content}
-        ListHeaderComponent={<View><View style={styles.topbar}><TouchableOpacity style={styles.backButton} onPress={() => router.back()}><MaterialCommunityIcons name="arrow-right" size={21} color={BRAND.text} /></TouchableOpacity><Text style={styles.topbarTitle}>بطاقات تعليمية</Text><TouchableOpacity style={styles.addIcon} onPress={() => setCreatorOpen((value) => !value)}><MaterialCommunityIcons name={creatorOpen ? "close" : "plus"} size={21} color={BRAND.primary} /></TouchableOpacity></View><View style={styles.summary}><View><Text style={styles.summaryTitle}>{dueCards.length} بطاقة للمراجعة</Text><Text style={styles.summaryText}>راجع بضع بطاقات الآن، وسنرتب الموعد التالي تلقائيًا.</Text></View><View style={styles.summaryIcon}><MaterialCommunityIcons name="cards-outline" size={28} color={BRAND.primary} /></View></View>{creatorOpen ? <View style={styles.creator}><Text style={styles.creatorTitle}>بطاقة جديدة</Text><TextInput value={front} onChangeText={setFront} placeholder="المفردة أو السؤال" placeholderTextColor={BRAND.muted} style={styles.input} textAlign="right" /><TextInput value={back} onChangeText={setBack} placeholder="المعنى أو الإجابة" placeholderTextColor={BRAND.muted} style={styles.input} textAlign="right" /><View style={styles.languageRow}>{languages.map((item) => <TouchableOpacity key={item} onPress={() => setLanguage(item)} style={[styles.languageChip, language === item && styles.languageChipSelected]}><Text style={[styles.languageText, language === item && styles.languageTextSelected]}>{item}</Text></TouchableOpacity>)}</View><TouchableOpacity style={styles.createButton} onPress={() => void addCard()}><Text style={styles.createText}>حفظ البطاقة</Text></TouchableOpacity></View> : null}{activeCard ? <View style={styles.reviewCard}><View style={styles.reviewHeader}><Text style={styles.reviewCounter}>مستحقة الآن · {reviewIndex + 1}/{dueCards.length}</Text><Text style={styles.reviewLanguage}>{activeCard.language}</Text></View><TouchableOpacity style={styles.cardFace} onPress={() => setShowAnswer((value) => !value)} activeOpacity={0.88}><Text style={styles.cardPrompt}>{showAnswer ? "الإجابة" : "المفردة"}</Text><Text style={styles.cardText}>{showAnswer ? activeCard.back : activeCard.front}</Text><Text style={styles.tapHint}>{showAnswer ? "قيّم مدى تذكرك الآن" : "اضغط لإظهار الإجابة"}</Text></TouchableOpacity>{showAnswer ? <View style={styles.ratingRow}>{ratings.map((item) => <TouchableOpacity key={item.key} onPress={() => void rateCard(item.key)} style={[styles.rating, { borderColor: item.color }]}><Text style={[styles.ratingText, { color: item.color }]}>{item.label}</Text></TouchableOpacity>)}</View> : null}</View> : <View style={styles.emptyReview}><MaterialCommunityIcons name="party-popper" size={28} color={BRAND.primary} /><Text style={styles.emptyTitle}>لا توجد مراجعات مستحقة</Text><Text style={styles.emptyText}>أضف بطاقات أو عد لاحقًا عند حلول موعد المراجعة.</Text></View>}<Text style={styles.sectionTitle}>بطاقاتك الأخيرة</Text></View>}
+        ListHeaderComponent={<View><View style={styles.topbar}><TouchableOpacity style={styles.backButton} onPress={() => router.back()}><MaterialCommunityIcons name="arrow-right" size={21} color={BRAND.text} /></TouchableOpacity><Text style={styles.topbarTitle}>بطاقات تعليمية</Text><TouchableOpacity style={styles.addIcon} onPress={() => setCreatorOpen((value) => !value)}><MaterialCommunityIcons name={creatorOpen ? "close" : "plus"} size={21} color={BRAND.primary} /></TouchableOpacity></View><View style={styles.summary}><View><Text style={styles.summaryTitle}>{dueCards.length} بطاقة للمراجعة</Text><Text style={styles.summaryText}>أكملت {weeklyReviews} مراجعات هذا الأسبوع. حافظ على الإيقاع.</Text></View><View style={styles.summaryIcon}><MaterialCommunityIcons name="cards-outline" size={28} color={BRAND.primary} /></View></View><TouchableOpacity style={styles.packButton} onPress={() => void importPack()} activeOpacity={0.85}><MaterialCommunityIcons name="package-variant-closed" size={19} color={BRAND.primary} /><Text style={styles.packText}>أضف حزمة مفردات {language} الأساسية</Text></TouchableOpacity>{creatorOpen ? <View style={styles.creator}><Text style={styles.creatorTitle}>بطاقة جديدة</Text><TextInput value={front} onChangeText={setFront} placeholder="المفردة أو السؤال" placeholderTextColor={BRAND.muted} style={styles.input} textAlign="right" /><TextInput value={back} onChangeText={setBack} placeholder="المعنى أو الإجابة" placeholderTextColor={BRAND.muted} style={styles.input} textAlign="right" /><View style={styles.languageRow}>{languages.map((item) => <TouchableOpacity key={item} onPress={() => setLanguage(item)} style={[styles.languageChip, language === item && styles.languageChipSelected]}><Text style={[styles.languageText, language === item && styles.languageTextSelected]}>{item}</Text></TouchableOpacity>)}</View><TouchableOpacity style={styles.createButton} onPress={() => void addCard()}><Text style={styles.createText}>حفظ البطاقة</Text></TouchableOpacity></View> : null}{activeCard ? <View style={styles.reviewCard}><View style={styles.reviewHeader}><Text style={styles.reviewCounter}>مستحقة الآن · {reviewIndex + 1}/{dueCards.length}</Text><Text style={styles.reviewLanguage}>{activeCard.language}</Text></View><TouchableOpacity style={styles.cardFace} onPress={() => setShowAnswer((value) => !value)} activeOpacity={0.88}><Text style={styles.cardPrompt}>{showAnswer ? "الإجابة" : "المفردة"}</Text><Text style={styles.cardText}>{showAnswer ? activeCard.back : activeCard.front}</Text><Text style={styles.tapHint}>{showAnswer ? "قيّم مدى تذكرك الآن" : "اضغط لإظهار الإجابة"}</Text></TouchableOpacity><TouchableOpacity style={styles.speakButton} onPress={() => void speakActiveCard()}><MaterialCommunityIcons name="volume-high" size={18} color={BRAND.primary} /><Text style={styles.speakText}>استمع إلى النطق</Text></TouchableOpacity>{showAnswer ? <View style={styles.ratingRow}>{ratings.map((item) => <TouchableOpacity key={item.key} onPress={() => void rateCard(item.key)} style={[styles.rating, { borderColor: item.color }]}><Text style={[styles.ratingText, { color: item.color }]}>{item.label}</Text></TouchableOpacity>)}</View> : null}</View> : <View style={styles.emptyReview}><MaterialCommunityIcons name="party-popper" size={28} color={BRAND.primary} /><Text style={styles.emptyTitle}>لا توجد مراجعات مستحقة</Text><Text style={styles.emptyText}>أضف بطاقات أو عد لاحقًا عند حلول موعد المراجعة.</Text></View>}<Text style={styles.sectionTitle}>بطاقاتك الأخيرة</Text></View>}
         ItemSeparatorComponent={() => <View style={{ height: 9 }} />}
         ListEmptyComponent={<View />}
         renderItem={({ item }) => <View style={styles.cardRow}><View style={styles.miniIcon}><MaterialCommunityIcons name="translate" size={18} color={BRAND.primary} /></View><View style={styles.cardCopy}><Text style={styles.rowFront}>{item.front}</Text><Text style={styles.rowBack}>{item.back}</Text><ProgressBar value={Math.min(100, item.repetitions * 20)} /></View><Text style={styles.interval}>{item.intervalDays || 0}د</Text></View>}
@@ -70,6 +94,8 @@ const styles = StyleSheet.create({
   summaryTitle: { color: BRAND.text, fontSize: 18, fontWeight: "900", textAlign: "right" },
   summaryText: { color: BRAND.muted, fontSize: 12, lineHeight: 18, textAlign: "right", marginTop: 4, maxWidth: 235 },
   summaryIcon: { width: 52, height: 52, borderRadius: 17, backgroundColor: BRAND.primarySoft, alignItems: "center", justifyContent: "center" },
+  packButton: { minHeight: 46, paddingHorizontal: 13, borderRadius: 14, flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: BRAND.primary, backgroundColor: BRAND.primarySoft, marginTop: 11 },
+  packText: { color: BRAND.primary, fontSize: 12, fontWeight: "900" },
   creator: { padding: 15, borderRadius: 20, backgroundColor: BRAND.surface, borderWidth: 1, borderColor: BRAND.border, marginTop: 14 },
   creatorTitle: { color: BRAND.text, fontSize: 15, fontWeight: "900", textAlign: "right", marginBottom: 10 },
   input: { minHeight: 43, borderRadius: 12, borderWidth: 1, borderColor: BRAND.border, backgroundColor: BRAND.background, color: BRAND.text, marginBottom: 9, paddingHorizontal: 11 },
@@ -88,6 +114,8 @@ const styles = StyleSheet.create({
   cardPrompt: { color: BRAND.primary, fontSize: 12, fontWeight: "900" },
   cardText: { color: BRAND.text, fontSize: 28, fontWeight: "900", textAlign: "center", marginTop: 12 },
   tapHint: { color: BRAND.muted, fontSize: 11, marginTop: 18 },
+  speakButton: { minHeight: 39, borderRadius: 11, flexDirection: "row", gap: 6, alignItems: "center", justifyContent: "center", backgroundColor: BRAND.primarySoft, marginTop: 10 },
+  speakText: { color: BRAND.primary, fontSize: 12, fontWeight: "900" },
   ratingRow: { flexDirection: "row", gap: 6, marginTop: 12 },
   rating: { flex: 1, minHeight: 38, borderRadius: 11, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   ratingText: { fontSize: 10, fontWeight: "900" },

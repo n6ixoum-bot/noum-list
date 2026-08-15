@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Platform, StyleSheet, Switch, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, Platform, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from "react-native";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { BRAND } from "@/constants/brand";
@@ -9,7 +9,6 @@ import { clearLearningPaths } from "@/lib/learning-paths";
 import { disableDailyReminder, loadReminderSettings, scheduleDailyReminder, updateReminderTime } from "@/lib/reminders";
 import { formatReminderTime, type ReminderSettings } from "@/lib/reminder-utils";
 import { useLocale } from "@/lib/locale-provider";
-import { useThemeContext } from "@/lib/theme-provider";
 
 const timeChoices = [
   { hour: 18, minute: 0 },
@@ -20,10 +19,10 @@ const timeChoices = [
 export default function SettingsScreen() {
   const router = useRouter();
   const { locale, setLocale, t } = useLocale();
-  const { colorScheme, setColorScheme } = useThemeContext();
   const [reminder, setReminder] = useState<ReminderSettings | null>(null);
   const [savingReminder, setSavingReminder] = useState(false);
   const [reminderMessage, setReminderMessage] = useState<string | null>(null);
+  const [customTime, setCustomTime] = useState("");
 
   useEffect(() => {
     loadReminderSettings().then(setReminder);
@@ -48,6 +47,13 @@ export default function SettingsScreen() {
     setReminder(result.settings);
     setSavingReminder(false);
     setReminderMessage(result.status === "scheduled" ? `تم تعديل التذكير إلى ${formatReminderTime(hour, minute)}.` : `سيكون التذكير عند ${formatReminderTime(hour, minute)} عند تشغيله.`);
+  };
+
+  const applyCustomTime = async () => {
+    const match = customTime.trim().match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
+    if (!match) { setReminderMessage("اكتب الوقت بصيغة 24 ساعة، مثل 19:30."); return; }
+    await chooseTime(Number(match[1]), Number(match[2]));
+    setCustomTime("");
   };
 
   const clearData = () => {
@@ -93,8 +99,8 @@ export default function SettingsScreen() {
           </View>
           <View style={styles.divider} />
           <View style={styles.preferenceRow}>
-            <Switch value={colorScheme === "dark"} onValueChange={(value) => setColorScheme(value ? "dark" : "light")} trackColor={{ false: "#334039", true: "#1B7040" }} thumbColor={colorScheme === "dark" ? BRAND.primary : "#DCE6DF"} />
-            <View style={styles.rowText}><Text style={styles.rowTitle}>{t("darkMode")}</Text><Text style={styles.rowDescription}>{t("darkModeDescription")}</Text></View>
+            <View style={styles.darkLocked}><MaterialCommunityIcons name="check" size={15} color="#07160D" /></View>
+            <View style={styles.rowText}><Text style={styles.rowTitle}>المظهر الداكن</Text><Text style={styles.rowDescription}>مفعّل دائمًا لحماية العين وتركيز أفضل</Text></View>
             <View style={styles.iconWrap}><MaterialCommunityIcons name="theme-light-dark" size={21} color={BRAND.primary} /></View>
           </View>
         </View>
@@ -126,6 +132,7 @@ export default function SettingsScreen() {
               );
             })}
           </View>
+          <View style={styles.customTimeRow}><TextInput value={customTime} onChangeText={setCustomTime} placeholder="وقت مخصص 19:30" placeholderTextColor={BRAND.muted} keyboardType="numbers-and-punctuation" style={styles.customTimeInput} textAlign="center" /><TouchableOpacity style={styles.customTimeButton} onPress={() => void applyCustomTime()} disabled={!reminder || savingReminder}><Text style={styles.customTimeButtonText}>تطبيق</Text></TouchableOpacity></View>
           {savingReminder ? <ActivityIndicator style={styles.reminderLoader} color={BRAND.primary} /> : null}
           {reminderMessage ? <Text style={styles.reminderMessage}>{reminderMessage}</Text> : null}
           {Platform.OS === "web" ? <Text style={styles.webHint}>تُفعّل الإشعارات اليومية عند تثبيت التطبيق على Android.</Text> : null}
@@ -155,6 +162,7 @@ const styles = StyleSheet.create({
   dangerText: { color: BRAND.danger, fontWeight: "800", fontSize: 14 },
   preferenceCard: { marginTop: 16, padding: 16, borderWidth: 1, borderColor: BRAND.border, borderRadius: 21, backgroundColor: BRAND.surface },
   preferenceRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  darkLocked: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: BRAND.primary },
   languageChoices: { flexDirection: "row", gap: 8, marginTop: 12 },
   languageChoice: { flex: 1, minHeight: 39, borderWidth: 1, borderColor: BRAND.border, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: BRAND.background },
   languageChoiceSelected: { borderColor: BRAND.primary, backgroundColor: BRAND.primarySoft },
@@ -170,6 +178,10 @@ const styles = StyleSheet.create({
   timeChoiceSelected: { backgroundColor: BRAND.primarySoft, borderColor: BRAND.primary },
   timeChoiceText: { color: BRAND.muted, fontSize: 12, fontWeight: "800" },
   timeChoiceTextSelected: { color: BRAND.primary },
+  customTimeRow: { flexDirection: "row", gap: 8, marginTop: 10 },
+  customTimeInput: { flex: 1, height: 39, borderRadius: 12, borderWidth: 1, borderColor: BRAND.border, color: BRAND.text, backgroundColor: BRAND.background, fontSize: 12 },
+  customTimeButton: { width: 70, height: 39, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: BRAND.primarySoft, borderWidth: 1, borderColor: BRAND.primary },
+  customTimeButtonText: { color: BRAND.primary, fontSize: 12, fontWeight: "900" },
   reminderLoader: { marginTop: 11 },
   reminderMessage: { color: BRAND.muted, fontSize: 12, lineHeight: 19, textAlign: "right", marginTop: 10 },
   webHint: { color: BRAND.warning, fontSize: 11, lineHeight: 17, textAlign: "right", marginTop: 7 },

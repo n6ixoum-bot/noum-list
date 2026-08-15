@@ -12,6 +12,8 @@ import { getPathProgress, type LearningPath } from "@/lib/plan-builder";
 import { calculateLearningStatistics } from "@/lib/statistics";
 import { loadStreakStatus } from "@/lib/streaks";
 import { getLevelFromXp, getLevelProgress, loadFocusSessions, loadProfile } from "@/lib/noum-core";
+import { loadFlashcardReviews } from "@/lib/flashcards";
+import { getAchievements } from "@/lib/achievements";
 import type { StreakStatus } from "@/lib/streak-calculator";
 
 export default function StatsScreen() {
@@ -21,19 +23,22 @@ export default function StatsScreen() {
   const [streak, setStreak] = useState<StreakStatus | null>(null);
   const [xp, setXp] = useState(0);
   const [focusMinutes, setFocusMinutes] = useState(0);
+  const [reviewCount, setReviewCount] = useState(0);
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    const [nextPaths, nextStreak, profile, sessions] = await Promise.all([loadLearningPaths(), loadStreakStatus(), loadProfile(), loadFocusSessions()]);
+    const [nextPaths, nextStreak, profile, sessions, reviews] = await Promise.all([loadLearningPaths(), loadStreakStatus(), loadProfile(), loadFocusSessions(), loadFlashcardReviews()]);
     setPaths(nextPaths);
     setStreak(nextStreak);
     setXp(profile.xp);
     setFocusMinutes(sessions.reduce((sum, session) => sum + session.minutes, 0));
+    setReviewCount(reviews.length);
     setLoading(false);
   }, []);
 
   useFocusEffect(useCallback(() => { void refresh(); }, [refresh]));
   const stats = useMemo(() => calculateLearningStatistics(paths), [paths]);
+  const achievements = useMemo(() => getAchievements({ xp, focusMinutes, reviewCount, streak: streak?.bestStreak ?? 0 }), [xp, focusMinutes, reviewCount, streak?.bestStreak]);
 
   return (
     <ScreenContainer>
@@ -62,6 +67,7 @@ export default function StatsScreen() {
                   <View style={styles.bestBadge}><Text style={styles.bestBadgeNumber}>الأفضل {streak?.bestStreak ?? 0}</Text><Text style={styles.bestBadgeLabel}>يومًا</Text></View>
                 </View>
                 <View style={styles.gamificationCard}><View style={styles.levelCircle}><Text style={styles.levelNumber}>{getLevelFromXp(xp)}</Text><Text style={styles.levelLabel}>LVL</Text></View><View style={styles.gamificationCopy}><Text style={styles.gamificationTitle}>المستوى {getLevelFromXp(xp)} · {xp} XP</Text><Text style={styles.gamificationDescription}>{getLevelProgress(xp)}/100 XP للمستوى التالي · {Math.round(focusMinutes / 60 * 10) / 10} ساعة تركيز</Text><ProgressBar value={getLevelProgress(xp)} /></View></View>
+                <View style={styles.badges}><Text style={styles.badgesTitle}>شاراتك</Text><View style={styles.badgeRow}>{achievements.map((badge) => <View key={badge.id} style={[styles.badge, badge.unlocked && styles.badgeUnlocked]}><MaterialCommunityIcons name={badge.icon as any} size={16} color={badge.unlocked ? BRAND.primary : BRAND.muted} /><Text style={[styles.badgeText, badge.unlocked && styles.badgeTextUnlocked]}>{badge.title}</Text></View>)}</View></View>
                 <View style={styles.heroCard}>
                   <View style={styles.ring}>
                     <Text style={styles.ringValue}>{stats.overallProgress}%</Text>
@@ -138,6 +144,13 @@ const styles = StyleSheet.create({
   gamificationCopy: { flex: 1, gap: 7 },
   gamificationTitle: { color: "#FFFFFF", fontSize: 14, fontWeight: "900", textAlign: "right" },
   gamificationDescription: { color: "#B9D9C4", fontSize: 11, lineHeight: 17, textAlign: "right" },
+  badges: { marginBottom: 13, padding: 14, borderRadius: 19, borderWidth: 1, borderColor: BRAND.border, backgroundColor: BRAND.surface },
+  badgesTitle: { color: BRAND.text, fontSize: 13, fontWeight: "900", textAlign: "right", marginBottom: 9 },
+  badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
+  badge: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 8, paddingVertical: 7, borderRadius: 10, backgroundColor: BRAND.background, opacity: 0.65 },
+  badgeUnlocked: { backgroundColor: BRAND.primarySoft, opacity: 1 },
+  badgeText: { color: BRAND.muted, fontSize: 10, fontWeight: "800" },
+  badgeTextUnlocked: { color: BRAND.primary },
   heroCard: { flexDirection: "row", alignItems: "center", gap: 17, padding: 18, borderRadius: 23, backgroundColor: BRAND.surface, borderWidth: 1, borderColor: BRAND.border },
   ring: { width: 96, height: 96, borderRadius: 48, borderWidth: 9, borderColor: BRAND.primarySoft, alignItems: "center", justifyContent: "center", backgroundColor: "#0A0E0C" },
   ringValue: { color: BRAND.primary, fontSize: 23, fontWeight: "900" },

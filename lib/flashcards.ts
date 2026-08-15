@@ -14,7 +14,10 @@ export type Flashcard = {
   createdAt: string;
 };
 
+export type FlashcardReview = { cardId: string; rating: ReviewRating; reviewedAt: string };
+
 const FLASHCARDS_KEY = "noum-list.flashcards.v1";
+const FLASHCARD_REVIEWS_KEY = "noum-list.flashcard-reviews.v1";
 
 function dateAtStart(value: Date | string) {
   const date = typeof value === "string" ? new Date(value) : new Date(value);
@@ -67,5 +70,20 @@ export async function reviewFlashcard(id: string, rating: ReviewRating, reviewed
   const cards = await loadFlashcards();
   const updated = cards.map((card) => card.id === id ? scheduleReview(card, rating, reviewedAt) : card);
   await saveFlashcards(updated);
+  const reviews = await loadFlashcardReviews();
+  await AsyncStorage.setItem(FLASHCARD_REVIEWS_KEY, JSON.stringify([{ cardId: id, rating, reviewedAt: reviewedAt.toISOString() }, ...reviews].slice(0, 500)));
   return updated;
+}
+
+export async function loadFlashcardReviews(): Promise<FlashcardReview[]> {
+  const raw = await AsyncStorage.getItem(FLASHCARD_REVIEWS_KEY);
+  if (!raw) return [];
+  try { return JSON.parse(raw) as FlashcardReview[]; } catch { return []; }
+}
+
+export function getWeeklyReviewCount(reviews: FlashcardReview[], referenceDate = new Date()) {
+  const start = new Date(referenceDate);
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - 6);
+  return reviews.filter((review) => new Date(review.reviewedAt).getTime() >= start.getTime()).length;
 }

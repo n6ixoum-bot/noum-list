@@ -14,6 +14,7 @@ export type KnowledgeNote = {
 export type ProgressProfile = {
   xp: number;
   completedTaskIds: string[];
+  rewardedActivityIds: string[];
 };
 
 export type FocusSession = {
@@ -50,17 +51,27 @@ export async function saveKnowledgeNote(input: Pick<KnowledgeNote, "title" | "bo
 
 export async function loadProfile(): Promise<ProgressProfile> {
   const raw = await AsyncStorage.getItem(XP_KEY);
-  if (!raw) return { xp: 0, completedTaskIds: [] };
+  if (!raw) return { xp: 0, completedTaskIds: [], rewardedActivityIds: [] };
   try {
     const value = JSON.parse(raw) as Partial<ProgressProfile>;
-    return { xp: typeof value.xp === "number" ? value.xp : 0, completedTaskIds: Array.isArray(value.completedTaskIds) ? value.completedTaskIds : [] };
-  } catch { return { xp: 0, completedTaskIds: [] }; }
+    return { xp: typeof value.xp === "number" ? value.xp : 0, completedTaskIds: Array.isArray(value.completedTaskIds) ? value.completedTaskIds : [], rewardedActivityIds: Array.isArray(value.rewardedActivityIds) ? value.rewardedActivityIds : [] };
+  } catch { return { xp: 0, completedTaskIds: [], rewardedActivityIds: [] }; }
 }
 
 export async function awardTaskXp(taskId: string, amount = 25) {
+  const profile = await awardActivityXp(taskId, amount);
+  if (!profile.completedTaskIds.includes(taskId)) {
+    const next = { ...profile, completedTaskIds: [...profile.completedTaskIds, taskId] };
+    await AsyncStorage.setItem(XP_KEY, JSON.stringify(next));
+    return next;
+  }
+  return profile;
+}
+
+export async function awardActivityXp(activityId: string, amount: number) {
   const profile = await loadProfile();
-  if (profile.completedTaskIds.includes(taskId)) return profile;
-  const next = { xp: profile.xp + amount, completedTaskIds: [...profile.completedTaskIds, taskId] };
+  if (profile.rewardedActivityIds.includes(activityId)) return profile;
+  const next = { ...profile, xp: profile.xp + amount, rewardedActivityIds: [...profile.rewardedActivityIds, activityId].slice(-1000) };
   await AsyncStorage.setItem(XP_KEY, JSON.stringify(next));
   return next;
 }
