@@ -43,6 +43,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="stats"
+        options={{
+          title: "إحصائيات",
+          tabBarIcon: ({ color, size }) => <MaterialCommunityIcons size={size} name="chart-donut-variant" color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{
           title: "الإعدادات",
