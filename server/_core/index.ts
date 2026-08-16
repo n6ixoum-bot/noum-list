@@ -33,29 +33,44 @@ async function startServer() {
   const app = express();
   const server = createServer(app);
 
-  // Enable CORS for all routes - reflect the request origin to support credentials
+  const allowedOrigins = new Set(
+    [
+      process.env.EXPO_WEB_PREVIEW_URL,
+      process.env.EXPO_PACKAGER_PROXY_URL,
+      process.env.VITE_APP_URL,
+      "https://learnpath-eqgbt4by.manus.space",
+    ].filter((value): value is string => Boolean(value)),
+  );
+  const isDevelopmentOrigin = (origin: string) =>
+    process.env.NODE_ENV !== "production" && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+
   app.use((req, res, next) => {
     const origin = req.headers.origin;
-    if (origin) {
-      res.header("Access-Control-Allow-Origin", origin);
-    }
+    res.header("X-Content-Type-Options", "nosniff");
+    res.header("Referrer-Policy", "strict-origin-when-cross-origin");
+    res.header("Permissions-Policy", "camera=(), geolocation=(), microphone=()");
     res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-    res.header(
-      "Access-Control-Allow-Headers",
-      "Origin, X-Requested-With, Content-Type, Accept, Authorization",
-    );
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
     res.header("Access-Control-Allow-Credentials", "true");
 
-    // Handle preflight requests
+    if (origin && (allowedOrigins.has(origin) || isDevelopmentOrigin(origin))) {
+      res.header("Access-Control-Allow-Origin", origin);
+      res.header("Vary", "Origin");
+    }
+
     if (req.method === "OPTIONS") {
-      res.sendStatus(200);
+      if (origin && !allowedOrigins.has(origin) && !isDevelopmentOrigin(origin)) {
+        res.sendStatus(403);
+        return;
+      }
+      res.sendStatus(204);
       return;
     }
     next();
   });
 
-  app.use(express.json({ limit: "50mb" }));
-  app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  app.use(express.json({ limit: "4mb" }));
+  app.use(express.urlencoded({ limit: "4mb", extended: true }));
 
   registerStorageProxy(app);
   registerOAuthRoutes(app);
@@ -82,7 +97,9 @@ async function startServer() {
   }
 
   const preferredPort = parseInt(process.env.PORT || "3000");
-  const port = await findAvailablePort(preferredPort);
+  const port = process.env.NODE_ENV === "production"
+    ? preferredPort
+    : await findAvailablePort(preferredPort);
 
   if (port !== preferredPort) {
     console.log(`Port ${preferredPort} is busy, using port ${port} instead`);

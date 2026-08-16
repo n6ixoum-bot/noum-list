@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bell,
   BookOpen,
@@ -246,12 +246,16 @@ function App() {
   const [pendingRestore, setPendingRestore] = useState<BackupEnvelope | null>(null);
   const [restoreSource, setRestoreSource] = useState<"local" | "cloud">("local");
   const [confirmCloudOverwrite, setConfirmCloudOverwrite] = useState(false);
+  const pdfInput = useRef<HTMLInputElement>(null);
 
   const locale = state.locale;
   const copy = localeCopy[locale];
   const isArabic = locale === "ar";
 
-  useEffect(() => { saveNoumState(state); }, [state]);
+  useEffect(() => {
+    const timeout = window.setTimeout(() => saveNoumState(state), 120);
+    return () => window.clearTimeout(timeout);
+  }, [state]);
   useEffect(() => { document.documentElement.lang = locale; document.documentElement.dir = isArabic ? "rtl" : "ltr"; }, [isArabic, locale]);
   useEffect(() => {
     if (!timerRunning) return;
@@ -273,6 +277,24 @@ function App() {
     const timeout = window.setTimeout(() => setToast(""), 3400);
     return () => window.clearTimeout(timeout);
   }, [toast]);
+  useEffect(() => {
+    const handleKeyboard = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setShowNewTask(true);
+      }
+      if (event.key === "Escape") {
+        setShowNewTask(false);
+        setShowNewPath(false);
+        setNewNote(false);
+        setPendingRestore(null);
+        setConfirmCloudOverwrite(false);
+        setMobileOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyboard);
+    return () => window.removeEventListener("keydown", handleKeyboard);
+  }, []);
   useEffect(() => {
     void refreshSyncStatus();
   }, []);
@@ -365,6 +387,23 @@ function App() {
   function advanceBook(bookId: string) {
     setState((current) => ({ ...current, books: current.books.map((book) => book.id === bookId ? { ...book, progress: Math.min(100, book.progress + 5) } : book) }));
     notify(copy.bookUpdated);
+  }
+
+  function importPdf(file: File) {
+    const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+    if (!isPdf || file.size > 8 * 1024 * 1024) {
+      notify(isArabic ? "اختر ملف PDF صالحًا بحجم أقل من 8MB." : "Choose a valid PDF smaller than 8MB.");
+      return;
+    }
+    const title = file.name.replace(/\.pdf$/i, "").trim() || (isArabic ? "كتاب مستورد" : "Imported book");
+    setState((current) => ({
+      ...current,
+      books: [{ id: `book-${Date.now()}`, title, author: isArabic ? "ملف محلي" : "Local file", progress: 0, pages: 0, accent: "#48e2a3", question: isArabic ? "ما الفكرة التي تريد الاحتفاظ بها من هذا الكتاب؟" : "What idea do you want to keep from this book?" }, ...current.books],
+    }));
+    const objectUrl = URL.createObjectURL(file);
+    window.open(objectUrl, "_blank", "noopener,noreferrer");
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+    notify(isArabic ? "تمت إضافة الكتاب وفتح ملف PDF." : "The book was added and the PDF was opened.");
   }
 
   function resetFocus(minutes: number = 25) { setTimerRunning(false); setSecondsLeft(minutes * 60); }
@@ -550,8 +589,8 @@ function App() {
 
   function renderLibrary() {
     return <>
-      <PageIntro eyebrow={isArabic ? "قراءة واعية" : "Intentional reading"} title={copy.books} subtitle={isArabic ? "احفظ تقدمك، أضف ملاحظاتك، وارجع إلى أسئلة المراجعة." : "Keep your place, save notes, and return to review questions."} action={<button className="primary-button" type="button" onClick={() => notify(isArabic ? "اختيار ملف PDF متاح في إصدار المتصفح القادم." : "PDF import is available in the browser release next." )}><Upload size={17} /> {copy.importBook}</button>} />
-      <div className="book-shelf">{state.books.map((book) => <article className="book-card" key={book.id}><div className="book-cover" style={{ "--book-accent": book.accent } as React.CSSProperties}><span>Noum<br />Library</span><b>{book.title}</b><i /></div><div className="book-card-content"><div><p>{book.author}</p><h2>{book.title}</h2></div><div className="book-progress"><div><span>{book.progress}%</span><small>{Math.round((book.pages * book.progress) / 100)} / {book.pages} {isArabic ? "صفحة" : "pages"}</small></div><ProgressBar value={book.progress} tone="mint" label={`${book.title} progress`} /></div><div className="book-question"><CircleHelp size={16} /><p><strong>{copy.question}</strong>{book.question}</p></div><button className="soft-button full-button" type="button" onClick={() => advanceBook(book.id)}><BookOpen size={16} /> {copy.continueReading}</button></div></article>)}</div>
+      <PageIntro eyebrow={isArabic ? "قراءة واعية" : "Intentional reading"} title={copy.books} subtitle={isArabic ? "احفظ تقدمك، أضف ملاحظاتك، وارجع إلى أسئلة المراجعة." : "Keep your place, save notes, and return to review questions."} action={<><button className="primary-button" type="button" onClick={() => pdfInput.current?.click()}><Upload size={17} /> {copy.importBook}</button><input ref={pdfInput} className="sr-only" type="file" accept="application/pdf,.pdf" onChange={(event) => { const file = event.target.files?.[0]; if (file) importPdf(file); event.currentTarget.value = ""; }} /></>} />
+      <div className="book-shelf">{state.books.map((book) => <article className="book-card" key={book.id}><div className="book-cover" style={{ "--book-accent": book.accent } as React.CSSProperties}><span>Noum<br />Library</span><b>{book.title}</b><i /></div><div className="book-card-content"><div><p>{book.author}</p><h2>{book.title}</h2></div><div className="book-progress"><div><span>{book.progress}%</span><small>{book.pages > 0 ? `${Math.round((book.pages * book.progress) / 100)} / ${book.pages} ${isArabic ? "صفحة" : "pages"}` : (isArabic ? "تقدم محفوظ محليًا" : "Progress saved locally")}</small></div><ProgressBar value={book.progress} tone="mint" label={`${book.title} progress`} /></div><div className="book-question"><CircleHelp size={16} /><p><strong>{copy.question}</strong>{book.question}</p></div><button className="soft-button full-button" type="button" onClick={() => advanceBook(book.id)}><BookOpen size={16} /> {copy.continueReading}</button></div></article>)}</div>
     </>;
   }
 
@@ -593,7 +632,7 @@ function App() {
       <div className="sidebar-bottom"><button className="shortcut-hint" type="button" onClick={() => setShowNewTask(true)}><Keyboard size={15} /><span>{isArabic ? "التقاط فكرة" : "Capture thought"}</span><kbd>⌘ K</kbd></button><div className="profile-card"><span className="profile-avatar">ن</span><div><strong>{isArabic ? "مستخدم Noum" : "Noum user"}</strong><small>Level 04 · 720 XP</small></div><MoreButton label="Profile actions" /></div></div>
     </aside>
     {mobileOpen ? <button className="nav-backdrop" aria-label={copy.close} type="button" onClick={() => setMobileOpen(false)} /> : null}
-    <main className="main-content"><div className="topbar"><IconButton label={copy.mobileMenu} className="mobile-menu" onClick={() => setMobileOpen(true)}><Menu size={21} /></IconButton><div className="command-search"><Search size={18} /><span>{copy.command}</span><kbd>⌘ K</kbd></div><div className="topbar-actions"><IconButton label="Notifications" className="notification-button"><Bell size={19} /><i /></IconButton><div className="date-chip"><Clock3 size={16} /><span>{isArabic ? "السبت، 16 أغسطس" : "Saturday, August 16"}</span></div></div></div><div className="workspace">{viewContent[activeView]()}</div></main>
+    <main className="main-content"><div className="topbar"><IconButton label={copy.mobileMenu} className="mobile-menu" onClick={() => setMobileOpen(true)}><Menu size={21} /></IconButton><button className="command-search" type="button" aria-label={copy.command} onClick={() => setShowNewTask(true)}><Search size={18} /><span>{copy.command}</span><kbd>⌘ K</kbd></button><div className="topbar-actions"><IconButton label="Notifications" className="notification-button"><Bell size={19} /><i /></IconButton><div className="date-chip"><Clock3 size={16} /><span>{isArabic ? "السبت، 16 أغسطس" : "Saturday, August 16"}</span></div></div></div><div className="workspace">{viewContent[activeView]()}</div></main>
     {toast ? <div className="toast-message" role="status"><Check size={17} />{toast}</div> : null}
     {showNewTask ? <Modal title={copy.addTask} onClose={() => setShowNewTask(false)}><label className="field-label">{copy.addTask}<input autoFocus value={newTaskTitle} onChange={(event) => setNewTaskTitle(event.target.value)} placeholder={copy.taskPlaceholder} onKeyDown={(event) => { if (event.key === "Enter") addTask(); }} /></label><div className="modal-actions"><button className="ghost-button" type="button" onClick={() => setShowNewTask(false)}>{copy.cancel}</button><button className="primary-button" type="button" onClick={addTask}>{copy.save}</button></div></Modal> : null}
     {showNewPath ? <Modal title={copy.newPath} onClose={() => setShowNewPath(false)}><label className="field-label">{copy.pathName}<input autoFocus value={newPathTitle} onChange={(event) => setNewPathTitle(event.target.value)} placeholder={isArabic ? "مثال: تعلّم الرسم الرقمي" : "Example: Learn digital art"} /></label><label className="field-label">{copy.pathDesc}<textarea value={newPathDescription} onChange={(event) => setNewPathDescription(event.target.value)} placeholder={isArabic ? "صف النتيجة التي تريدها…" : "Describe the outcome you want…"} rows={3} /></label><div className="modal-actions"><button className="ghost-button" type="button" onClick={() => setShowNewPath(false)}>{copy.cancel}</button><button className="primary-button" type="button" onClick={addPath}>{copy.create}</button></div></Modal> : null}

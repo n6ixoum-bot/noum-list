@@ -1,6 +1,9 @@
 import type { Flashcard, KnowledgeNote, LibraryBook, LearningPath, NoumState, Task } from "../types";
 
 const STORE_KEY = "noum-list-web-v1";
+const STORE_VERSION = 2;
+
+type PersistedNoumState = Partial<NoumState> & { version?: number };
 
 export const seedPaths: LearningPath[] = [
   {
@@ -92,12 +95,29 @@ function copySeed(): NoumState {
   return JSON.parse(JSON.stringify(seedState)) as NoumState;
 }
 
+function normalizeState(input: PersistedNoumState): NoumState {
+  const seed = copySeed();
+  return {
+    ...seed,
+    ...input,
+    locale: input.locale === "en" ? "en" : "ar",
+    tasks: Array.isArray(input.tasks) ? input.tasks : seed.tasks,
+    paths: Array.isArray(input.paths) ? input.paths : seed.paths,
+    notes: Array.isArray(input.notes) ? input.notes : seed.notes,
+    flashcards: Array.isArray(input.flashcards) ? input.flashcards : seed.flashcards,
+    books: Array.isArray(input.books) ? input.books : seed.books,
+    focusMinutes: typeof input.focusMinutes === "number" && Number.isFinite(input.focusMinutes) ? Math.max(0, input.focusMinutes) : seed.focusMinutes,
+    soundEnabled: typeof input.soundEnabled === "boolean" ? input.soundEnabled : seed.soundEnabled,
+  };
+}
+
 export function loadNoumState(): NoumState {
   if (typeof window === "undefined") return copySeed();
   try {
     const raw = window.localStorage.getItem(STORE_KEY);
     if (!raw) return copySeed();
-    return { ...copySeed(), ...(JSON.parse(raw) as Partial<NoumState>) };
+    const parsed = JSON.parse(raw) as PersistedNoumState;
+    return normalizeState(parsed);
   } catch {
     return copySeed();
   }
@@ -105,7 +125,11 @@ export function loadNoumState(): NoumState {
 
 export function saveNoumState(state: NoumState): void {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORE_KEY, JSON.stringify(state));
+  try {
+    window.localStorage.setItem(STORE_KEY, JSON.stringify({ ...state, version: STORE_VERSION }));
+  } catch {
+    // Keep the in-memory session usable when private mode or storage quota blocks persistence.
+  }
 }
 
 export function resetNoumState(): NoumState {

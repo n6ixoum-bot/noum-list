@@ -1,0 +1,12 @@
+{
+  "name": "Noum List",
+  "short_name": "Noum List",
+  "description": "مساحة عمل شخصية للتعلّم، التركيز، والمعرفة.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080b09",
+  "theme_color": "#35d89a",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": []
+}
