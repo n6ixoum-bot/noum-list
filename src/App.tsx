@@ -247,6 +247,8 @@ function App() {
   const [pendingRestore, setPendingRestore] = useState<BackupEnvelope | null>(null);
   const [restoreSource, setRestoreSource] = useState<"local" | "cloud">("local");
   const [confirmCloudOverwrite, setConfirmCloudOverwrite] = useState(false);
+  const [libraryQuery, setLibraryQuery] = useState("");
+  const [libraryFilter, setLibraryFilter] = useState<"all" | "active" | "finished">("all");
   const pdfInput = useRef<HTMLInputElement>(null);
 
   const locale = state.locale;
@@ -311,6 +313,14 @@ function App() {
   const todayLabel = new Intl.DateTimeFormat(locale === "ar" ? "ar-SA" : "en-US", { weekday: "long", day: "numeric", month: "long" }).format(new Date());
   const activePath = state.paths.find((path) => pathProgress(path) < 100) ?? state.paths[0];
   const activeNote = state.notes.find((note) => note.id === selectedNoteId) ?? state.notes[0];
+  const filteredBooks = useMemo(() => {
+    const query = libraryQuery.trim().toLocaleLowerCase();
+    return state.books.filter((book) => {
+      const matchesQuery = !query || `${book.title} ${book.author}`.toLocaleLowerCase().includes(query);
+      const matchesFilter = libraryFilter === "all" || (libraryFilter === "finished" ? book.progress >= 100 : book.progress < 100);
+      return matchesQuery && matchesFilter;
+    }).sort((a, b) => a.title.localeCompare(b.title));
+  }, [libraryFilter, libraryQuery, state.books]);
   const focusDisplay = `${Math.floor(secondsLeft / 60).toString().padStart(2, "0")}:${(secondsLeft % 60).toString().padStart(2, "0")}`;
   const chartValues = useMemo(() => [48, 68, 46, 84, 62, 76, 91], []);
 
@@ -600,7 +610,8 @@ function App() {
   function renderLibrary() {
     return <>
       <PageIntro eyebrow={isArabic ? "قراءة واعية" : "Intentional reading"} title={copy.books} subtitle={isArabic ? "احفظ تقدمك، أضف ملاحظاتك، وارجع إلى أسئلة المراجعة." : "Keep your place, save notes, and return to review questions."} action={<><button className="primary-button" type="button" onClick={() => pdfInput.current?.click()}><Upload size={17} /> {copy.importBook}</button><input ref={pdfInput} className="sr-only" type="file" accept="application/pdf,.pdf" onChange={(event) => { const file = event.target.files?.[0]; if (file) importPdf(file); event.currentTarget.value = ""; }} /></>} />
-      <div className="book-shelf">{state.books.map((book) => <article className="book-card" key={book.id}><div className="book-cover" style={{ "--book-accent": book.accent } as React.CSSProperties}><span>Noum<br />Library</span><b>{book.title}</b><i /></div><div className="book-card-content"><div><p>{book.author}</p><h2>{book.title}</h2></div><div className="book-progress"><div><span>{book.progress}%</span><small>{book.pages > 0 ? `${Math.round((book.pages * book.progress) / 100)} / ${book.pages} ${isArabic ? "صفحة" : "pages"}` : (isArabic ? "تقدم محفوظ محليًا" : "Progress saved locally")}</small></div><ProgressBar value={book.progress} tone="mint" label={`${book.title} progress`} /></div><div className="book-question"><CircleHelp size={16} /><p><strong>{copy.question}</strong>{book.question}</p></div><button className="soft-button full-button" type="button" onClick={() => advanceBook(book.id)}><BookOpen size={16} /> {copy.continueReading}</button></div></article>)}</div>
+      <div className="library-toolbar"><label className="library-search"><Search size={17} /><span className="sr-only">{isArabic ? "بحث في المكتبة" : "Search library"}</span><input value={libraryQuery} onChange={(event) => setLibraryQuery(event.target.value)} placeholder={isArabic ? "ابحث باسم الكتاب أو المؤلف" : "Search by title or author"} /></label><div className="library-filters" role="group" aria-label={isArabic ? "تصفية الكتب" : "Book filters"}><button type="button" className={libraryFilter === "all" ? "active" : ""} onClick={() => setLibraryFilter("all")}>{isArabic ? "كل الكتب" : "All books"}</button><button type="button" className={libraryFilter === "active" ? "active" : ""} onClick={() => setLibraryFilter("active")}>{isArabic ? "قيد القراءة" : "In progress"}</button><button type="button" className={libraryFilter === "finished" ? "active" : ""} onClick={() => setLibraryFilter("finished")}>{isArabic ? "مكتملة" : "Finished"}</button></div></div>
+      {filteredBooks.length ? <div className="book-shelf">{filteredBooks.map((book) => <article className="book-card" key={book.id}><div className="book-cover" style={{ "--book-accent": book.accent } as React.CSSProperties}><span>{isArabic ? "مكتبة نوم" : "Noum Library"}</span><b>{book.title}</b><i /></div><div className="book-card-content"><div><p>{book.author}</p><h2>{book.title}</h2></div><div className="book-progress"><div><span>{book.progress}%</span><small>{book.pages > 0 ? `${Math.round((book.pages * book.progress) / 100)} / ${book.pages} ${isArabic ? "صفحة" : "pages"}` : (isArabic ? "تقدم محفوظ محليًا" : "Progress saved locally")}</small></div><ProgressBar value={book.progress} tone="mint" label={`${book.title} progress`} /></div><div className="book-question"><CircleHelp size={16} /><p><strong>{copy.question}</strong>{book.question}</p></div><button className="soft-button full-button" type="button" onClick={() => advanceBook(book.id)}><BookOpen size={16} /> {copy.continueReading}</button></div></article>)}</div> : <Panel className="library-empty"><BookOpen size={26} /><h2>{isArabic ? "مكتبتك تبدأ من هنا" : "Your library starts here"}</h2><p>{isArabic ? "أضف كتاب PDF من جهازك، وسيُحفظ تقدمه داخل هذا المتصفح." : "Import a PDF from your device and keep its progress in this browser."}</p><button className="primary-button" type="button" onClick={() => pdfInput.current?.click()}><Upload size={17} /> {copy.importBook}</button></Panel>}
     </>;
   }
 

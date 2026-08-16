@@ -11,3 +11,13 @@ The current experience is a single-shell dashboard with several sections rendere
 ## Browser verification
 
 The published route opens the dashboard directly in a browser. Navigation to “العقل الثاني” works and exposes a note list, a selected note reader, linked path action, and knowledge map. The section is an actual interactive workspace rather than a dead route.
+
+## Nix/web preview verification
+
+Preview URL tested: https://8081-iq3shp3fjnhlvzvjzrn82-7cb33bb2.us2.manus.computer/
+
+The preview loads the RTL web dashboard, shows the current Arabic date, and reflects the cleaned web scripts (the sidebar profile now reads “مساحتي”). The library toolbar still needs browser interaction verification after navigation.
+
+## Library interaction verification
+
+The library route opened successfully in the web preview. It exposes an Arabic search field and three filters: all books, in progress, and finished. Entering `Deep` reduced the visible results to only **Deep Work**, confirming the search is functional rather than decorative.
