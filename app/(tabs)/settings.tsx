@@ -8,6 +8,7 @@ import { BRAND } from "@/constants/brand";
 import { clearLearningPaths } from "@/lib/learning-paths";
 import { disableDailyReminder, loadReminderSettings, scheduleDailyReminder, updateReminderTime } from "@/lib/reminders";
 import { formatReminderTime, type ReminderSettings } from "@/lib/reminder-utils";
+import { loadSuccessSoundEnabled, setSuccessSoundEnabled } from "@/lib/success-sounds";
 import { useLocale } from "@/lib/locale-provider";
 
 const timeChoices = [
@@ -23,9 +24,11 @@ export default function SettingsScreen() {
   const [savingReminder, setSavingReminder] = useState(false);
   const [reminderMessage, setReminderMessage] = useState<string | null>(null);
   const [customTime, setCustomTime] = useState("");
+  const [successSoundsEnabled, setSuccessSoundsEnabled] = useState(true);
 
   useEffect(() => {
     loadReminderSettings().then(setReminder);
+    loadSuccessSoundEnabled().then(setSuccessSoundsEnabled);
   }, []);
 
   const toggleReminder = async (enabled: boolean) => {
@@ -105,6 +108,14 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        <View style={styles.soundCard}>
+          <View style={styles.preferenceRow}>
+            <Switch value={successSoundsEnabled} onValueChange={(value) => { setSuccessSoundsEnabled(value); void setSuccessSoundEnabled(value); }} trackColor={{ false: "#334039", true: "#1B7040" }} thumbColor={successSoundsEnabled ? BRAND.primary : "#DCE6DF"} />
+            <View style={styles.rowText}><Text style={styles.rowTitle}>أصوات النجاح</Text><Text style={styles.rowDescription}>صوت قصير عند الشارة أو إكمال جلسة التركيز</Text></View>
+            <View style={styles.iconWrap}><MaterialCommunityIcons name="volume-high" size={21} color={BRAND.primary} /></View>
+          </View>
+        </View>
+
         <View style={styles.reminderCard}>
           <View style={styles.reminderHeader}>
             <Switch
@@ -168,6 +179,7 @@ const styles = StyleSheet.create({
   languageChoiceSelected: { borderColor: BRAND.primary, backgroundColor: BRAND.primarySoft },
   languageChoiceText: { color: BRAND.muted, fontSize: 12, fontWeight: "800" },
   languageChoiceTextSelected: { color: BRAND.primary },
+  soundCard: { marginTop: 16, padding: 16, borderWidth: 1, borderColor: BRAND.border, borderRadius: 21, backgroundColor: BRAND.surface },
   reminderCard: { marginTop: 16, padding: 16, borderWidth: 1, borderColor: BRAND.border, borderRadius: 21, backgroundColor: BRAND.surface },
   reminderHeader: { flexDirection: "row", alignItems: "center", gap: 11 },
   reminderIcon: { width: 42, height: 42, borderRadius: 14, backgroundColor: BRAND.primarySoft, alignItems: "center", justifyContent: "center" },

@@ -12,6 +12,7 @@ import { loadLearningPaths } from "@/lib/learning-paths";
 import { saveFocusSession } from "@/lib/noum-core";
 import { awardActivityXp } from "@/lib/noum-core";
 import { haptic } from "@/lib/haptics";
+import { playSuccessSound } from "@/lib/success-sounds";
 import type { LearningPath } from "@/lib/plan-builder";
 
 const durations = [15, 25, 50, 90];
@@ -37,7 +38,7 @@ export default function FocusScreen() {
         if (value <= 1) {
           clearInterval(interval);
           setRunning(false);
-          void saveFocusSession(pathId, minutes).then(async (session) => { await awardActivityXp(session.id, Math.max(10, minutes)); haptic.success(); setMessage(`أحسنت. سجلت ${minutes} دقيقة وكسَبت XP.`); setCompleted(true); });
+          void saveFocusSession(pathId, minutes).then(async (session) => { await awardActivityXp(session.id, Math.max(10, minutes)); haptic.success(); void playSuccessSound(); setMessage(`أحسنت. سجلت ${minutes} دقيقة وكسَبت XP.`); setCompleted(true); });
           return 0;
         }
         return value - 1;

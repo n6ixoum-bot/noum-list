@@ -17,6 +17,7 @@ import { getAchievements } from "@/lib/achievements";
 import { loadSeenAchievementIds, markAchievementSeen, type Achievement } from "@/lib/achievements";
 import { CelebrationOverlay } from "@/components/celebration-overlay";
 import { haptic } from "@/lib/haptics";
+import { playSuccessSound } from "@/lib/success-sounds";
 import type { StreakStatus } from "@/lib/streak-calculator";
 
 export default function StatsScreen() {
@@ -41,7 +42,7 @@ export default function StatsScreen() {
     const newlyUnlocked = getAchievements({ xp: profile.xp, focusMinutes: focusTotal, reviewCount: reviews.length, streak: nextStreak.bestStreak });
     const seen = await loadSeenAchievementIds();
     const fresh = newlyUnlocked.find((badge) => badge.unlocked && !seen.includes(badge.id));
-    if (fresh) { setCelebration(fresh); haptic.success(); }
+    if (fresh) { setCelebration(fresh); haptic.success(); void playSuccessSound(); }
     setLoading(false);
   }, []);
 
