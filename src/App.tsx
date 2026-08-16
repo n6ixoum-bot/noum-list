@@ -235,6 +235,7 @@ function App() {
   const [newPathTitle, setNewPathTitle] = useState("");
   const [newPathDescription, setNewPathDescription] = useState("");
   const [newNote, setNewNote] = useState(false);
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [newNoteTitle, setNewNoteTitle] = useState("");
   const [newNoteBody, setNewNoteBody] = useState("");
   const [secondsLeft, setSecondsLeft] = useState(25 * 60);
@@ -302,7 +303,14 @@ function App() {
   const completedTasks = state.tasks.filter((task) => task.completed).length;
   const completionRate = state.tasks.length ? Math.round((completedTasks / state.tasks.length) * 100) : 0;
   const dueCards = state.flashcards.filter((card) => card.due);
+  const currentStreak = Math.max(0, ...state.paths.map((path) => path.streak));
+  const xpTotal = completedTasks * 30 + state.paths.reduce((total, path) => total + path.completedSteps * 10, 0) + state.flashcards.reduce((total, card) => total + card.reviews * 5, 0);
+  const level = Math.max(1, Math.floor(xpTotal / 250) + 1);
+  const levelBase = (level - 1) * 250;
+  const levelProgress = Math.min(100, Math.round(((xpTotal - levelBase) / 250) * 100));
+  const todayLabel = new Intl.DateTimeFormat(locale === "ar" ? "ar-SA" : "en-US", { weekday: "long", day: "numeric", month: "long" }).format(new Date());
   const activePath = state.paths.find((path) => pathProgress(path) < 100) ?? state.paths[0];
+  const activeNote = state.notes.find((note) => note.id === selectedNoteId) ?? state.notes[0];
   const focusDisplay = `${Math.floor(secondsLeft / 60).toString().padStart(2, "0")}:${(secondsLeft % 60).toString().padStart(2, "0")}`;
   const chartValues = useMemo(() => [48, 68, 46, 84, 62, 76, 91], []);
 
@@ -362,10 +370,12 @@ function App() {
   function saveNote() {
     const title = newNoteTitle.trim();
     if (!title) return;
+    const noteId = `note-${Date.now()}`;
     setState((current) => ({
       ...current,
-      notes: [{ id: `note-${Date.now()}`, title, body: newNoteBody.trim() || "# New note", linkedPathIds: activePath ? [activePath.id] : [], updatedAt: copy.today, tags: [isArabic ? "جديد" : "New"] }, ...current.notes],
+      notes: [{ id: noteId, title, body: newNoteBody.trim() || "# New note", linkedPathIds: activePath ? [activePath.id] : [], updatedAt: copy.today, tags: [isArabic ? "جديد" : "New"] }, ...current.notes],
     }));
+    setSelectedNoteId(noteId);
     setNewNote(false);
     setNewNoteTitle("");
     setNewNoteBody("");
@@ -558,13 +568,13 @@ function App() {
     return <>
       <PageIntro eyebrow="Second brain" title={isArabic ? "العقل الثاني" : "Second brain"} subtitle={isArabic ? "التقط الأفكار واربطها بالمسارات قبل أن تضيع." : "Capture ideas and link them to paths before they disappear."} action={<button className="primary-button" type="button" onClick={() => setNewNote(true)}><Plus size={18} /> {copy.newNote}</button>} />
       <div className="brain-layout">
-        <Panel title={copy.notes} className="notes-index"><div className="note-index-list">{state.notes.map((note, index) => <button type="button" className={`note-index-item ${index === 0 ? "active" : ""}`} key={note.id}><span className="note-icon"><NotebookPen size={16} /></span><span><strong>{note.title}</strong><small>{note.updatedAt}</small></span><ChevronLeft size={16} /></button>)}</div></Panel>
+        <Panel title={copy.notes} className="notes-index"><div className="note-index-list">{state.notes.map((note) => <button type="button" className={`note-index-item ${note.id === activeNote?.id ? "active" : ""}`} key={note.id} onClick={() => setSelectedNoteId(note.id)}><span className="note-icon"><NotebookPen size={16} /></span><span><strong>{note.title}</strong><small>{note.updatedAt}</small></span><ChevronLeft size={16} /></button>)}</div></Panel>
         <Panel className="note-reader" action={<div className="reader-actions"><IconButton label="Search"><Search size={18} /></IconButton><MoreButton label="More" /></div>}>
           <article className="markdown-note">
-            <div className="note-meta"><span>{state.notes[0]?.updatedAt}</span><span>•</span><span>{state.notes[0]?.tags.join(" · ")}</span></div>
-            <h2>{state.notes[0]?.title}</h2>
-            {state.notes[0]?.body.split("\n").map((line, index) => line.startsWith("# ") ? <h1 key={index}>{line.replace("# ", "")}</h1> : line.startsWith("## ") ? <h3 key={index}>{line.replace("## ", "")}</h3> : line.startsWith("- ") ? <p className="bullet" key={index}>{line.replace("- ", "")}</p> : <p key={index}>{line.replace(/\*\*/g, "")}</p>)}
-            <div className="linked-paths"><span>{copy.linked}</span>{state.notes[0]?.linkedPathIds.map((id) => <button key={id} type="button" onClick={() => changeView("paths")}>↗ {state.paths.find((path) => path.id === id)?.title}</button>)}</div>
+            <div className="note-meta"><span>{activeNote?.updatedAt}</span><span>•</span><span>{activeNote?.tags.join(" · ")}</span></div>
+            <h2>{activeNote?.title}</h2>
+            {activeNote?.body.split("\n").map((line, index) => line.startsWith("# ") ? <h1 key={index}>{line.replace("# ", "")}</h1> : line.startsWith("## ") ? <h3 key={index}>{line.replace("## ", "")}</h3> : line.startsWith("- ") ? <p className="bullet" key={index}>{line.replace("- ", "")}</p> : <p key={index}>{line.replace(/\*\*/g, "")}</p>)}
+            <div className="linked-paths"><span>{copy.linked}</span>{activeNote?.linkedPathIds.map((id) => <button key={id} type="button" onClick={() => changeView("paths")}>↗ {state.paths.find((path) => path.id === id)?.title}</button>)}</div>
           </article>
         </Panel>
         <aside className="knowledge-map"><p className="eyebrow">Knowledge map</p><h3>{isArabic ? "الروابط تتشكل" : "Connections forming"}</h3><div className="map-canvas"><span className="map-node center">{state.notes[0]?.title.slice(0, 11)}</span><span className="map-node left">{state.paths[0]?.title.slice(0, 9)}</span><span className="map-node top">{isArabic ? "تركيز" : "Focus"}</span><span className="map-node right">{isArabic ? "تكرار" : "Review"}</span><i className="map-link one" /><i className="map-link two" /><i className="map-link three" /></div><p>{isArabic ? "كل ملاحظة ترتبط بفكرة أو مسار حتى تصبح المعرفة قابلة للاستخدام." : "Link every note to an idea or path so knowledge stays usable."}</p></aside>
@@ -605,7 +615,7 @@ function App() {
   function renderStats() {
     return <>
       <PageIntro eyebrow={isArabic ? "نمو واضح" : "Visible growth"} title={copy.weekly} subtitle={isArabic ? "بدون ضغط: أرقام بسيطة تساعدك على الاستمرار." : "No pressure: simple signals that help you keep moving."} />
-      <div className="stats-hero-grid"><Panel className="insight-panel"><div className="insight-top"><div><p className="eyebrow">{copy.completion}</p><h2>{completionRate}%</h2><p>{isArabic ? "من مهامك الحالية مكتملة" : "of current tasks completed"}</p></div><ProgressRing value={completionRate} label={copy.completion} /></div><ProgressBar value={completionRate} label={copy.completion} /></Panel><Panel className="streak-panel"><Flame size={30} /><div><p>{copy.streak}</p><h2>6 {isArabic ? "أيام" : "days"}</h2><span>{isArabic ? "أفضل سلسلة: 11 يومًا" : "Best streak: 11 days"}</span></div></Panel><Panel className="xp-panel"><Sparkles size={24} /><p>{isArabic ? "مستواك الحالي" : "Your current level"}</p><h2>Level 04</h2><ProgressBar value={72} tone="violet" label="Level progress" /><small>720 / 1000 XP</small></Panel></div>
+      <div className="stats-hero-grid"><Panel className="insight-panel"><div className="insight-top"><div><p className="eyebrow">{copy.completion}</p><h2>{completionRate}%</h2><p>{isArabic ? "من مهامك الحالية مكتملة" : "of current tasks completed"}</p></div><ProgressRing value={completionRate} label={copy.completion} /></div><ProgressBar value={completionRate} label={copy.completion} /></Panel><Panel className="streak-panel"><Flame size={30} /><div><p>{copy.streak}</p><h2>{currentStreak} {isArabic ? "أيام" : "days"}</h2><span>{isArabic ? `أعلى سلسلة مسجلة: ${currentStreak} يومًا` : `Current best: ${currentStreak} days`}</span></div></Panel><Panel className="xp-panel"><Sparkles size={24} /><p>{isArabic ? "مستواك الحالي" : "Your current level"}</p><h2>Level {level.toString().padStart(2, "0")}</h2><ProgressBar value={levelProgress} tone="violet" label="Level progress" /><small>{xpTotal} XP · {levelProgress}%</small></Panel></div>
       <div className="stats-grid"><Panel title={copy.weekly} subtitle={isArabic ? "دقائق تركيز" : "Focus minutes"} className="wide-chart"><div className="bar-chart large">{chartValues.map((value, index) => <div className="bar-column" key={index}><i style={{ height: `${value}%` }} /><span>{["Sat", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri"][index]}</span></div>)}</div></Panel><Panel title={isArabic ? "تقدم المسارات" : "Path progress"}>{state.paths.map((path) => <div className="stats-path" key={path.id}><div><span className={`color-dot ${path.color}`} /><strong>{path.title}</strong><small>{path.completedSteps}/{path.steps}</small></div><ProgressBar value={pathProgress(path)} tone={path.color} label={path.title} /></div>)}</Panel></div>
       <Panel title={isArabic ? "الشارات التي فتحتها" : "Unlocked badges"}><div className="badge-row"><Badge icon={<Flame size={21} />} title={isArabic ? "نفس ثابت" : "Steady pace"} detail={isArabic ? "5 أيام متتالية" : "5-day streak"} /><Badge icon={<Focus size={21} />} title={isArabic ? "تركيز عميق" : "Deep focus"} detail={isArabic ? "5 ساعات" : "5 hours"} /><Badge icon={<BookOpen size={21} />} title={isArabic ? "قارئ واعٍ" : "Intentional reader"} detail={isArabic ? "3 كتب" : "3 books"} /><Badge icon={<BrainCircuit size={21} />} title={isArabic ? "جامع أفكار" : "Idea keeper"} detail={isArabic ? "10 ملاحظات" : "10 notes"} /></div></Panel>
     </>;
@@ -629,10 +639,10 @@ function App() {
     <aside className={`sidebar ${mobileOpen ? "mobile-open" : ""}`}>
       <div className="sidebar-top"><BrandMark /><IconButton label={copy.close} className="sidebar-close" onClick={() => setMobileOpen(false)}><X size={20} /></IconButton></div>
       <nav className="side-nav" aria-label="Primary navigation">{navigation.map((item) => { const Icon = item.icon; const active = activeView === item.id; return <button key={item.id} className={active ? "active" : ""} type="button" onClick={() => changeView(item.id)}><Icon size={19} strokeWidth={active ? 2.3 : 1.85} /><span>{isArabic ? item.ar : item.en}</span>{item.id === "learning" && dueCards.length ? <b>{dueCards.length}</b> : null}</button>; })}</nav>
-      <div className="sidebar-bottom"><button className="shortcut-hint" type="button" onClick={() => setShowNewTask(true)}><Keyboard size={15} /><span>{isArabic ? "التقاط فكرة" : "Capture thought"}</span><kbd>⌘ K</kbd></button><div className="profile-card"><span className="profile-avatar">ن</span><div><strong>{isArabic ? "مستخدم Noum" : "Noum user"}</strong><small>Level 04 · 720 XP</small></div><MoreButton label="Profile actions" /></div></div>
+      <div className="sidebar-bottom"><button className="shortcut-hint" type="button" onClick={() => setShowNewTask(true)}><Keyboard size={15} /><span>{isArabic ? "التقاط فكرة" : "Capture thought"}</span><kbd>⌘ K</kbd></button><div className="profile-card"><span className="profile-avatar">ن</span><div><strong>{isArabic ? "مساحتي" : "My workspace"}</strong><small>Level {level.toString().padStart(2, "0")} · {xpTotal} XP</small></div><MoreButton label="Profile actions" /></div></div>
     </aside>
     {mobileOpen ? <button className="nav-backdrop" aria-label={copy.close} type="button" onClick={() => setMobileOpen(false)} /> : null}
-    <main className="main-content"><div className="topbar"><IconButton label={copy.mobileMenu} className="mobile-menu" onClick={() => setMobileOpen(true)}><Menu size={21} /></IconButton><button className="command-search" type="button" aria-label={copy.command} onClick={() => setShowNewTask(true)}><Search size={18} /><span>{copy.command}</span><kbd>⌘ K</kbd></button><div className="topbar-actions"><IconButton label="Notifications" className="notification-button"><Bell size={19} /><i /></IconButton><div className="date-chip"><Clock3 size={16} /><span>{isArabic ? "السبت، 16 أغسطس" : "Saturday, August 16"}</span></div></div></div><div className="workspace">{viewContent[activeView]()}</div></main>
+    <main className="main-content"><div className="topbar"><IconButton label={copy.mobileMenu} className="mobile-menu" onClick={() => setMobileOpen(true)}><Menu size={21} /></IconButton><button className="command-search" type="button" aria-label={copy.command} onClick={() => setShowNewTask(true)}><Search size={18} /><span>{copy.command}</span><kbd>⌘ K</kbd></button><div className="topbar-actions"><IconButton label="Notifications" className="notification-button"><Bell size={19} /><i /></IconButton><div className="date-chip"><Clock3 size={16} /><span>{todayLabel}</span></div></div></div><div className="workspace">{viewContent[activeView]()}</div></main>
     {toast ? <div className="toast-message" role="status"><Check size={17} />{toast}</div> : null}
     {showNewTask ? <Modal title={copy.addTask} onClose={() => setShowNewTask(false)}><label className="field-label">{copy.addTask}<input autoFocus value={newTaskTitle} onChange={(event) => setNewTaskTitle(event.target.value)} placeholder={copy.taskPlaceholder} onKeyDown={(event) => { if (event.key === "Enter") addTask(); }} /></label><div className="modal-actions"><button className="ghost-button" type="button" onClick={() => setShowNewTask(false)}>{copy.cancel}</button><button className="primary-button" type="button" onClick={addTask}>{copy.save}</button></div></Modal> : null}
     {showNewPath ? <Modal title={copy.newPath} onClose={() => setShowNewPath(false)}><label className="field-label">{copy.pathName}<input autoFocus value={newPathTitle} onChange={(event) => setNewPathTitle(event.target.value)} placeholder={isArabic ? "مثال: تعلّم الرسم الرقمي" : "Example: Learn digital art"} /></label><label className="field-label">{copy.pathDesc}<textarea value={newPathDescription} onChange={(event) => setNewPathDescription(event.target.value)} placeholder={isArabic ? "صف النتيجة التي تريدها…" : "Describe the outcome you want…"} rows={3} /></label><div className="modal-actions"><button className="ghost-button" type="button" onClick={() => setShowNewPath(false)}>{copy.cancel}</button><button className="primary-button" type="button" onClick={addPath}>{copy.create}</button></div></Modal> : null}
