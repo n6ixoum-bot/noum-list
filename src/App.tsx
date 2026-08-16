@@ -1,0 +1,522 @@
+import { useEffect, useMemo, useState } from "react";
+import {
+  Bell,
+  BookOpen,
+  BrainCircuit,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  CircleHelp,
+  ClipboardCheck,
+  Clock3,
+  Coffee,
+  Flame,
+  Focus,
+  FolderKanban,
+  GraduationCap,
+  Keyboard,
+  Languages,
+  LayoutDashboard,
+  ListChecks,
+  Menu,
+  Moon,
+  Music2,
+  NotebookPen,
+  Pause,
+  Play,
+  Plus,
+  RotateCcw,
+  Search,
+  Settings2,
+  Sparkles,
+  TimerReset,
+  Trophy,
+  Upload,
+  Volume2,
+  X,
+} from "lucide-react";
+import { BrandMark, CompletionBox, IconButton, MoreButton, Panel, ProgressBar, ProgressRing } from "./components/ui";
+import { loadNoumState, resetNoumState, saveNoumState } from "./lib/noum-store";
+import type { Locale, NoumState, Task, TaskPriority, ViewId } from "./types";
+
+const navigation: { id: ViewId; ar: string; en: string; icon: typeof LayoutDashboard }[] = [
+  { id: "dashboard", ar: "نظرة عامة", en: "Overview", icon: LayoutDashboard },
+  { id: "paths", ar: "المسارات", en: "Learning paths", icon: FolderKanban },
+  { id: "brain", ar: "العقل الثاني", en: "Second brain", icon: BrainCircuit },
+  { id: "learning", ar: "التعلّم", en: "Learning", icon: Languages },
+  { id: "library", ar: "المكتبة", en: "Library", icon: BookOpen },
+  { id: "focus", ar: "التركيز", en: "Focus", icon: Focus },
+  { id: "stats", ar: "الإحصاءات", en: "Insights", icon: Trophy },
+  { id: "settings", ar: "الإعدادات", en: "Settings", icon: Settings2 },
+];
+
+const localeCopy = {
+  ar: {
+    greeting: "مساء هادئ،",
+    user: "مستخدم Noum",
+    subtitle: "لديك مساحة مركزة اليوم. لنرتّب أهم خطوة تالية.",
+    quickCapture: "التقاط سريع",
+    newPath: "مسار جديد",
+    todayPlan: "خطة اليوم",
+    todayPlanSub: "مهام صغيرة، أثر واضح",
+    viewAll: "عرض الكل",
+    focus: "تركيز",
+    activePaths: "مسارات نشطة",
+    completion: "معدل الإنجاز",
+    streak: "سلسلة الإنجاز",
+    paths: "مساراتك",
+    current: "قيد التقدم",
+    continue: "متابعة",
+    review: "المراجعة اليوم",
+    dueCards: "بطاقات مستحقة",
+    knowledge: "من العقل الثاني",
+    knowledgeSub: "فكرة صغيرة تستحق العودة إليها",
+    addTask: "أضف مهمة جديدة",
+    taskPlaceholder: "اكتب أصغر خطوة تقدر تبدأ بها…",
+    save: "حفظ",
+    close: "إغلاق",
+    completed: "تم",
+    minutes: "دقيقة",
+    allDone: "كل المهام مكتملة. أحسنت!",
+    insight: "التقدم الهادئ يتراكم.",
+    focusNow: "ابدأ جلسة تركيز",
+    today: "اليوم",
+    tomorrow: "غدًا",
+    high: "مهم",
+    medium: "متوسط",
+    low: "خفيف",
+    noPaths: "ليس لديك مسارات بعد",
+    createPath: "أنشئ مسارك الأول",
+    pathName: "اسم المسار",
+    pathDesc: "ما النتيجة التي تريد الوصول إليها؟",
+    create: "إنشاء المسار",
+    cancel: "إلغاء",
+    notes: "ملاحظاتك",
+    newNote: "ملاحظة جديدة",
+    newNoteTitle: "عنوان الملاحظة",
+    newNoteBody: "اكتب فكرتك باستخدام Markdown…",
+    saveNote: "حفظ الملاحظة",
+    linked: "مرتبط بـ",
+    cards: "بطاقات اليوم",
+    showAnswer: "أظهر الإجابة",
+    again: "مرة أخرى",
+    good: "جيد",
+    easy: "سهل",
+    addCard: "بطاقة جديدة",
+    books: "مكتبة القراءة",
+    importBook: "إضافة كتاب PDF",
+    continueReading: "تابع القراءة",
+    question: "سؤال للمراجعة",
+    focusRoom: "غرفة التركيز",
+    focusSubtitle: "جلسة بلا تشتت، بخطوة واحدة واضحة.",
+    start: "ابدأ الجلسة",
+    pause: "إيقاف مؤقت",
+    reset: "إعادة",
+    sound: "صوت نجاح هادئ",
+    focusComplete: "اكتملت جلسة التركيز — +30 XP",
+    weekly: "إيقاعك هذا الأسبوع",
+    completedTasks: "مهام مكتملة",
+    focusHours: "ساعات تركيز",
+    reviewAccuracy: "تذكّر البطاقات",
+    settings: "تفضيلات مساحة العمل",
+    language: "لغة الواجهة",
+    arabic: "العربية",
+    english: "English",
+    resetData: "إعادة بيانات العرض",
+    resetDescription: "يعيد بيانات المثال الافتراضية فقط على هذا المتصفح.",
+    resetConfirm: "تمت إعادة البيانات المحلية.",
+    saved: "تم الحفظ محليًا",
+    pathCreated: "تم إنشاء المسار. ابدأ بخطوة صغيرة.",
+    taskDone: "أحسنت — تقدّمت خطوة.",
+    reviewDone: "ممتاز، تم تحديث موعد المراجعة.",
+    bookUpdated: "تم حفظ تقدم القراءة.",
+    mobileMenu: "فتح القائمة",
+    command: "البحث أو تنفيذ أمر",
+  },
+  en: {
+    greeting: "A calm evening,",
+    user: "Noum user",
+    subtitle: "You have a focused space today. Let’s shape the next important step.",
+    quickCapture: "Quick capture",
+    newPath: "New path",
+    todayPlan: "Today’s plan",
+    todayPlanSub: "Small tasks, meaningful progress",
+    viewAll: "View all",
+    focus: "Focus",
+    activePaths: "Active paths",
+    completion: "Completion rate",
+    streak: "Learning streak",
+    paths: "Your paths",
+    current: "In progress",
+    continue: "Continue",
+    review: "Today’s review",
+    dueCards: "cards due",
+    knowledge: "From your second brain",
+    knowledgeSub: "A small idea worth revisiting",
+    addTask: "Add a task",
+    taskPlaceholder: "Write the smallest step you can start now…",
+    save: "Save",
+    close: "Close",
+    completed: "Done",
+    minutes: "min",
+    allDone: "Everything is complete. Well done!",
+    insight: "Quiet progress compounds.",
+    focusNow: "Start focus session",
+    today: "Today",
+    tomorrow: "Tomorrow",
+    high: "Important",
+    medium: "Medium",
+    low: "Light",
+    noPaths: "No learning paths yet",
+    createPath: "Create your first path",
+    pathName: "Path name",
+    pathDesc: "What outcome do you want to reach?",
+    create: "Create path",
+    cancel: "Cancel",
+    notes: "Your notes",
+    newNote: "New note",
+    newNoteTitle: "Note title",
+    newNoteBody: "Write your thought in Markdown…",
+    saveNote: "Save note",
+    linked: "Linked to",
+    cards: "Today’s cards",
+    showAnswer: "Show answer",
+    again: "Again",
+    good: "Good",
+    easy: "Easy",
+    addCard: "New card",
+    books: "Reading library",
+    importBook: "Import PDF book",
+    continueReading: "Continue reading",
+    question: "Review question",
+    focusRoom: "Focus room",
+    focusSubtitle: "One clear step, free from distractions.",
+    start: "Start session",
+    pause: "Pause",
+    reset: "Reset",
+    sound: "Soft success sound",
+    focusComplete: "Focus session complete — +30 XP",
+    weekly: "Your rhythm this week",
+    completedTasks: "Completed tasks",
+    focusHours: "Focus hours",
+    reviewAccuracy: "Card recall",
+    settings: "Workspace preferences",
+    language: "Interface language",
+    arabic: "العربية",
+    english: "English",
+    resetData: "Reset sample data",
+    resetDescription: "Resets the default demo data in this browser only.",
+    resetConfirm: "Local data has been reset.",
+    saved: "Saved locally",
+    pathCreated: "Path created. Start with one small step.",
+    taskDone: "Nice — one step forward.",
+    reviewDone: "Great, the review schedule is updated.",
+    bookUpdated: "Reading progress saved.",
+    mobileMenu: "Open menu",
+    command: "Search or run a command",
+  },
+} as const;
+
+const priorityLabel = (priority: TaskPriority, locale: Locale) => localeCopy[locale][priority];
+const pathProgress = (path: NoumState["paths"][number]) => Math.round((path.completedSteps / path.steps) * 100);
+const minutesToText = (minutes: number) => `${minutes.toString().padStart(2, "0")}:${"00"}`;
+
+function App() {
+  const [state, setState] = useState<NoumState>(() => loadNoumState());
+  const [activeView, setActiveView] = useState<ViewId>("dashboard");
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [toast, setToast] = useState("");
+  const [showNewPath, setShowNewPath] = useState(false);
+  const [showNewTask, setShowNewTask] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newPathTitle, setNewPathTitle] = useState("");
+  const [newPathDescription, setNewPathDescription] = useState("");
+  const [newNote, setNewNote] = useState(false);
+  const [newNoteTitle, setNewNoteTitle] = useState("");
+  const [newNoteBody, setNewNoteBody] = useState("");
+  const [secondsLeft, setSecondsLeft] = useState(25 * 60);
+  const [timerRunning, setTimerRunning] = useState(false);
+  const [showAnswer, setShowAnswer] = useState(false);
+
+  const locale = state.locale;
+  const copy = localeCopy[locale];
+  const isArabic = locale === "ar";
+
+  useEffect(() => { saveNoumState(state); }, [state]);
+  useEffect(() => { document.documentElement.lang = locale; document.documentElement.dir = isArabic ? "rtl" : "ltr"; }, [isArabic, locale]);
+  useEffect(() => {
+    if (!timerRunning) return;
+    const interval = window.setInterval(() => {
+      setSecondsLeft((remaining) => {
+        if (remaining > 1) return remaining - 1;
+        window.clearInterval(interval);
+        setTimerRunning(false);
+        setState((current) => ({ ...current, focusMinutes: current.focusMinutes + 25 }));
+        setToast(copy.focusComplete);
+        return 0;
+      });
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, [copy.focusComplete, timerRunning]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timeout = window.setTimeout(() => setToast(""), 3400);
+    return () => window.clearTimeout(timeout);
+  }, [toast]);
+
+  const completedTasks = state.tasks.filter((task) => task.completed).length;
+  const completionRate = state.tasks.length ? Math.round((completedTasks / state.tasks.length) * 100) : 0;
+  const dueCards = state.flashcards.filter((card) => card.due);
+  const activePath = state.paths.find((path) => pathProgress(path) < 100) ?? state.paths[0];
+  const focusDisplay = `${Math.floor(secondsLeft / 60).toString().padStart(2, "0")}:${(secondsLeft % 60).toString().padStart(2, "0")}`;
+  const chartValues = useMemo(() => [48, 68, 46, 84, 62, 76, 91], []);
+
+  const notify = (message: string) => setToast(message);
+  const changeView = (view: ViewId) => { setActiveView(view); setMobileOpen(false); };
+
+  function toggleTask(taskId: string) {
+    const target = state.tasks.find((task) => task.id === taskId);
+    setState((current) => ({
+      ...current,
+      tasks: current.tasks.map((task) => task.id === taskId ? { ...task, completed: !task.completed } : task),
+    }));
+    if (target && !target.completed) notify(copy.taskDone);
+  }
+
+  function addTask() {
+    const title = newTaskTitle.trim();
+    if (!title) return;
+    const task: Task = {
+      id: `task-${Date.now()}`,
+      title,
+      pathId: activePath?.id ?? "inbox",
+      completed: false,
+      due: copy.today,
+      priority: "medium",
+      minutes: 15,
+    };
+    setState((current) => ({ ...current, tasks: [task, ...current.tasks] }));
+    setNewTaskTitle("");
+    setShowNewTask(false);
+    notify(copy.saved);
+  }
+
+  function addPath() {
+    const title = newPathTitle.trim();
+    if (!title) return;
+    setState((current) => ({
+      ...current,
+      paths: [{
+        id: `path-${Date.now()}`,
+        title,
+        description: newPathDescription.trim() || (isArabic ? "مسار شخصي منظم بخطوات قصيرة قابلة للقياس." : "A personal path shaped into small measurable steps."),
+        category: isArabic ? "مسار شخصي" : "Personal path",
+        color: "violet",
+        steps: 12,
+        completedSteps: 0,
+        streak: 0,
+        nextAction: isArabic ? "حدّد أول خطوة قابلة للبدء" : "Choose the first actionable step",
+      }, ...current.paths],
+    }));
+    setNewPathTitle("");
+    setNewPathDescription("");
+    setShowNewPath(false);
+    notify(copy.pathCreated);
+  }
+
+  function saveNote() {
+    const title = newNoteTitle.trim();
+    if (!title) return;
+    setState((current) => ({
+      ...current,
+      notes: [{ id: `note-${Date.now()}`, title, body: newNoteBody.trim() || "# New note", linkedPathIds: activePath ? [activePath.id] : [], updatedAt: copy.today, tags: [isArabic ? "جديد" : "New"] }, ...current.notes],
+    }));
+    setNewNote(false);
+    setNewNoteTitle("");
+    setNewNoteBody("");
+    notify(copy.saved);
+  }
+
+  function reviewCard(quality: "again" | "good" | "easy") {
+    const card = dueCards[0];
+    if (!card) return;
+    const intervalMap = { again: 1, good: Math.max(card.interval + 2, 3), easy: Math.max(card.interval + 5, 7) };
+    setState((current) => ({
+      ...current,
+      flashcards: current.flashcards.map((item) => item.id === card.id ? { ...item, due: false, interval: intervalMap[quality], reviews: item.reviews + 1 } : item),
+    }));
+    setShowAnswer(false);
+    notify(copy.reviewDone);
+  }
+
+  function advanceBook(bookId: string) {
+    setState((current) => ({ ...current, books: current.books.map((book) => book.id === bookId ? { ...book, progress: Math.min(100, book.progress + 5) } : book) }));
+    notify(copy.bookUpdated);
+  }
+
+  function resetFocus(minutes: number = 25) { setTimerRunning(false); setSecondsLeft(minutes * 60); }
+
+  function renderDashboard() {
+    const todayTasks = state.tasks.filter((task) => task.due === copy.today || task.due === "اليوم" || task.due === "Today");
+    return (
+      <>
+        <header className="page-header dashboard-header">
+          <div>
+            <p className="eyebrow"><Sparkles size={13} /> {copy.greeting}</p>
+            <h1>{copy.user}</h1>
+            <p className="page-subtitle">{copy.subtitle}</p>
+          </div>
+          <div className="header-actions">
+            <button className="ghost-button" onClick={() => setShowNewTask(true)} type="button"><ClipboardCheck size={17} /> {copy.quickCapture}</button>
+            <button className="primary-button" onClick={() => setShowNewPath(true)} type="button"><Plus size={18} /> {copy.newPath}</button>
+          </div>
+        </header>
+
+        <section className="metric-grid" aria-label={copy.insight}>
+          <MetricCard icon={<ListChecks size={20} />} value={`${completedTasks}/${state.tasks.length}`} label={copy.completedTasks} detail={isArabic ? "خطوات منجزة اليوم" : "steps completed today"} tone="mint" />
+          <MetricCard icon={<Focus size={20} />} value={`${Math.floor(state.focusMinutes / 60)}.${Math.round((state.focusMinutes % 60) / 6)}`} label={copy.focusHours} detail={isArabic ? "هذا الأسبوع" : "this week"} tone="blue" />
+          <MetricCard icon={<Flame size={20} />} value="6" label={copy.streak} detail={isArabic ? "أيام متتالية" : "days in a row"} tone="amber" />
+          <MetricCard icon={<BrainCircuit size={20} />} value={`${dueCards.length}`} label={copy.dueCards} detail={isArabic ? "مراجعة قصيرة تكفي" : "a short review is enough"} tone="violet" />
+        </section>
+
+        <section className="dashboard-layout">
+          <Panel title={copy.todayPlan} subtitle={copy.todayPlanSub} className="today-panel" action={<button className="text-button" onClick={() => changeView("paths")}>{copy.viewAll} <ChevronLeft size={16} /></button>}>
+            {todayTasks.length ? <div className="task-list">{todayTasks.map((task) => <TaskRow key={task.id} task={task} locale={locale} onToggle={() => toggleTask(task.id)} />)}</div> : <EmptyState icon={<Check size={22} />} text={copy.allDone} />}
+            <button className="add-line" type="button" onClick={() => setShowNewTask(true)}><Plus size={16} /> {copy.addTask}</button>
+          </Panel>
+
+          <section className="focus-callout">
+            <div className="glow-orb" />
+            <div className="callout-icon"><Focus size={21} /></div>
+            <p className="eyebrow">{copy.focus}</p>
+            <h2>{isArabic ? "مساحة بلا ضوضاء" : "A quiet space"}</h2>
+            <p>{isArabic ? "جلسة واحدة مركزة الآن أفضل من خطة كبيرة مؤجلة." : "One focused session now beats a large plan postponed."}</p>
+            <button className="dark-button" type="button" onClick={() => changeView("focus")}><Play size={16} fill="currentColor" /> {copy.focusNow}</button>
+          </section>
+        </section>
+
+        <section className="three-grid">
+          <Panel title={copy.paths} subtitle={copy.current} action={<button className="text-button" onClick={() => changeView("paths")}>{copy.viewAll} <ChevronLeft size={16} /></button>}>
+            <div className="compact-path-list">{state.paths.slice(0, 3).map((path) => <PathMini key={path.id} path={path} locale={locale} onContinue={() => changeView("paths")} />)}</div>
+          </Panel>
+          <Panel title={copy.review} subtitle={`${dueCards.length} ${copy.dueCards}`} action={<button className="text-button" onClick={() => changeView("learning")}>{copy.continue} <ChevronLeft size={16} /></button>}>
+            <div className="review-preview">
+              <div className="review-card-dots"><i /><i /><i /></div>
+              <p className="review-language">{dueCards[0]?.language ?? "English"}</p>
+              <strong>{dueCards[0]?.front ?? "All caught up"}</strong>
+              <span>{dueCards[0]?.back ?? copy.allDone}</span>
+            </div>
+          </Panel>
+          <Panel title={copy.knowledge} subtitle={copy.knowledgeSub} action={<button className="text-button" onClick={() => changeView("brain")}>{copy.viewAll} <ChevronLeft size={16} /></button>}>
+            <article className="note-preview">
+              <div className="note-preview-mark"><NotebookPen size={18} /></div>
+              <h3>{state.notes[0]?.title}</h3>
+              <p>{state.notes[0]?.body.replace(/[#*\[\]]/g, "").slice(0, 108)}…</p>
+              <span>{state.notes[0]?.updatedAt}</span>
+            </article>
+          </Panel>
+        </section>
+      </>
+    );
+  }
+
+  function renderPaths() {
+    return <>
+      <PageIntro eyebrow={copy.current} title={copy.paths} subtitle={isArabic ? "حوّل أي هدف إلى مراحل صغيرة، وشاهد أثر كل خطوة." : "Turn any goal into small stages and see the impact of each step."} action={<button className="primary-button" type="button" onClick={() => setShowNewPath(true)}><Plus size={18} /> {copy.newPath}</button>} />
+      <div className="path-grid">{state.paths.map((path) => <PathCard key={path.id} path={path} locale={locale} onContinue={() => { changeView("dashboard"); notify(path.nextAction); }} />)}</div>
+      <section className="path-advice"><div><Sparkles size={20} /><div><strong>{isArabic ? "اقتراح ذكي" : "Smart suggestion"}</strong><p>{isArabic ? "اختر مهمة مدتها أقل من 25 دقيقة عندما تشعر بالمقاومة. البداية الصغيرة تحافظ على السلسلة." : "Choose a task under 25 minutes when you feel resistance. A small start protects your streak."}</p></div></div><button className="ghost-button" type="button" onClick={() => setShowNewTask(true)}>{copy.addTask}</button></section>
+    </>;
+  }
+
+  function renderBrain() {
+    return <>
+      <PageIntro eyebrow="Second brain" title={isArabic ? "العقل الثاني" : "Second brain"} subtitle={isArabic ? "التقط الأفكار واربطها بالمسارات قبل أن تضيع." : "Capture ideas and link them to paths before they disappear."} action={<button className="primary-button" type="button" onClick={() => setNewNote(true)}><Plus size={18} /> {copy.newNote}</button>} />
+      <div className="brain-layout">
+        <Panel title={copy.notes} className="notes-index"><div className="note-index-list">{state.notes.map((note, index) => <button type="button" className={`note-index-item ${index === 0 ? "active" : ""}`} key={note.id}><span className="note-icon"><NotebookPen size={16} /></span><span><strong>{note.title}</strong><small>{note.updatedAt}</small></span><ChevronLeft size={16} /></button>)}</div></Panel>
+        <Panel className="note-reader" action={<div className="reader-actions"><IconButton label="Search"><Search size={18} /></IconButton><MoreButton label="More" /></div>}>
+          <article className="markdown-note">
+            <div className="note-meta"><span>{state.notes[0]?.updatedAt}</span><span>•</span><span>{state.notes[0]?.tags.join(" · ")}</span></div>
+            <h2>{state.notes[0]?.title}</h2>
+            {state.notes[0]?.body.split("\n").map((line, index) => line.startsWith("# ") ? <h1 key={index}>{line.replace("# ", "")}</h1> : line.startsWith("## ") ? <h3 key={index}>{line.replace("## ", "")}</h3> : line.startsWith("- ") ? <p className="bullet" key={index}>{line.replace("- ", "")}</p> : <p key={index}>{line.replace(/\*\*/g, "")}</p>)}
+            <div className="linked-paths"><span>{copy.linked}</span>{state.notes[0]?.linkedPathIds.map((id) => <button key={id} type="button" onClick={() => changeView("paths")}>↗ {state.paths.find((path) => path.id === id)?.title}</button>)}</div>
+          </article>
+        </Panel>
+        <aside className="knowledge-map"><p className="eyebrow">Knowledge map</p><h3>{isArabic ? "الروابط تتشكل" : "Connections forming"}</h3><div className="map-canvas"><span className="map-node center">{state.notes[0]?.title.slice(0, 11)}</span><span className="map-node left">{state.paths[0]?.title.slice(0, 9)}</span><span className="map-node top">{isArabic ? "تركيز" : "Focus"}</span><span className="map-node right">{isArabic ? "تكرار" : "Review"}</span><i className="map-link one" /><i className="map-link two" /><i className="map-link three" /></div><p>{isArabic ? "كل ملاحظة ترتبط بفكرة أو مسار حتى تصبح المعرفة قابلة للاستخدام." : "Link every note to an idea or path so knowledge stays usable."}</p></aside>
+      </div>
+    </>;
+  }
+
+  function renderLearning() {
+    const currentCard = dueCards[0];
+    return <>
+      <PageIntro eyebrow="Spaced repetition" title={isArabic ? "تعلّم بلا نسيان" : "Learn without forgetting"} subtitle={isArabic ? "بطاقات خفيفة مع مراجعة ذكية في الوقت المناسب." : "Lightweight cards, reviewed at the right moment."} action={<button className="ghost-button" type="button" onClick={() => notify(copy.addCard)}><Plus size={17} /> {copy.addCard}</button>} />
+      <section className="learning-top-grid">
+        <Panel title={copy.cards} subtitle={`${dueCards.length} ${copy.dueCards}`} className="flashcard-panel">
+          {currentCard ? <div className={`flashcard ${showAnswer ? "revealed" : ""}`}><div className="card-face card-front"><span>{currentCard.language}</span><h2>{currentCard.front}</h2><small>{isArabic ? "فكّر في المعنى ثم اقلب البطاقة" : "Recall the meaning before you reveal it"}</small></div><div className="card-face card-back"><span>{currentCard.language}</span><h2>{currentCard.back}</h2><small>{isArabic ? `المراجعة التالية بعد ${currentCard.interval} أيام` : `next review in ${currentCard.interval} days`}</small></div></div> : <EmptyState icon={<Check size={22} />} text={copy.allDone} />}
+          {currentCard ? !showAnswer ? <button className="primary-button full-button" type="button" onClick={() => setShowAnswer(true)}>{copy.showAnswer}</button> : <div className="review-actions"><button className="soft-danger" type="button" onClick={() => reviewCard("again")}>{copy.again}</button><button className="soft-button" type="button" onClick={() => reviewCard("good")}>{copy.good}</button><button className="primary-button" type="button" onClick={() => reviewCard("easy")}>{copy.easy}</button></div> : null}
+        </Panel>
+        <Panel title={copy.weekly} className="learning-chart"><div className="chart-card"><div className="bar-chart">{chartValues.map((value, index) => <div className="bar-column" key={index}><i style={{ height: `${value}%` }} /><span>{["س", "ح", "ن", "ث", "ر", "خ", "ج"][index]}</span></div>)}</div><div className="chart-legend"><span><i className="legend-dot" />{isArabic ? "مراجعات" : "Reviews"}</span><strong>68%</strong></div></div><div className="mini-stat-row"><div><strong>{state.flashcards.reduce((sum, card) => sum + card.reviews, 0)}</strong><span>{isArabic ? "مراجعة" : "reviews"}</span></div><div><strong>82%</strong><span>{copy.reviewAccuracy}</span></div></div></Panel>
+      </section>
+      <Panel title={isArabic ? "حزمة المفردات" : "Vocabulary pack"} subtitle={isArabic ? "English for daily work" : "English for daily work"}><div className="vocab-grid">{state.flashcards.map((card) => <article key={card.id} className={`vocab-card ${card.due ? "due" : ""}`}><span>{card.language}</span><h3>{card.front}</h3><p>{card.back}</p><small>{card.due ? `${copy.review} · ${card.interval}d` : (isArabic ? "مجدولة لاحقًا" : "Scheduled later")}</small></article>)}</div></Panel>
+    </>;
+  }
+
+  function renderLibrary() {
+    return <>
+      <PageIntro eyebrow={isArabic ? "قراءة واعية" : "Intentional reading"} title={copy.books} subtitle={isArabic ? "احفظ تقدمك، أضف ملاحظاتك، وارجع إلى أسئلة المراجعة." : "Keep your place, save notes, and return to review questions."} action={<button className="primary-button" type="button" onClick={() => notify(isArabic ? "اختيار ملف PDF متاح في إصدار المتصفح القادم." : "PDF import is available in the browser release next." )}><Upload size={17} /> {copy.importBook}</button>} />
+      <div className="book-shelf">{state.books.map((book) => <article className="book-card" key={book.id}><div className="book-cover" style={{ "--book-accent": book.accent } as React.CSSProperties}><span>Noum<br />Library</span><b>{book.title}</b><i /></div><div className="book-card-content"><div><p>{book.author}</p><h2>{book.title}</h2></div><div className="book-progress"><div><span>{book.progress}%</span><small>{Math.round((book.pages * book.progress) / 100)} / {book.pages} {isArabic ? "صفحة" : "pages"}</small></div><ProgressBar value={book.progress} tone="mint" label={`${book.title} progress`} /></div><div className="book-question"><CircleHelp size={16} /><p><strong>{copy.question}</strong>{book.question}</p></div><button className="soft-button full-button" type="button" onClick={() => advanceBook(book.id)}><BookOpen size={16} /> {copy.continueReading}</button></div></article>)}</div>
+    </>;
+  }
+
+  function renderFocus() {
+    return <>
+      <PageIntro eyebrow={isArabic ? "عمل عميق" : "Deep work"} title={copy.focusRoom} subtitle={copy.focusSubtitle} />
+      <section className="focus-room"><div className="focus-room-ambient" /><div className="focus-room-inner"><div className="focus-mode-tag"><Moon size={15} /> {isArabic ? "وضع هادئ" : "Quiet mode"}</div><h2>{activePath?.title ?? copy.focusRoom}</h2><p>{activePath?.nextAction ?? copy.focusSubtitle}</p><div className="timer-value"><span>{focusDisplay}</span></div><div className="timer-preset"><button onClick={() => resetFocus(25)} className={secondsLeft === 1500 ? "active" : ""} type="button">25</button><button onClick={() => resetFocus(50)} className={secondsLeft === 3000 ? "active" : ""} type="button">50</button><button onClick={() => resetFocus(90)} className={secondsLeft === 5400 ? "active" : ""} type="button">90</button><span>{copy.minutes}</span></div><div className="timer-controls"><button className="timer-reset" type="button" onClick={() => resetFocus()} aria-label={copy.reset}><TimerReset size={19} /></button><button className="timer-start" type="button" onClick={() => setTimerRunning((running) => !running)}>{timerRunning ? <><Pause size={18} fill="currentColor" /> {copy.pause}</> : <><Play size={18} fill="currentColor" /> {copy.start}</>}</button></div></div><aside className="focus-sidecard"><div className="focus-side-icon"><Music2 size={18} /></div><strong>{isArabic ? "الصوت المحيط" : "Ambient sound"}</strong><p>{isArabic ? "دع ضوضاء خفيفة تحجب المقاطعات." : "Use a light sound layer to hide interruptions."}</p><button className={`sound-toggle ${state.soundEnabled ? "on" : ""}`} type="button" onClick={() => setState((current) => ({ ...current, soundEnabled: !current.soundEnabled }))}><Volume2 size={16} /><span>{state.soundEnabled ? (isArabic ? "مفعّل" : "On") : (isArabic ? "متوقف" : "Off")}</span><i /></button><div className="focus-tip"><Coffee size={16} /><span>{isArabic ? "خذ استراحة قصيرة بعد كل جلستين." : "Take a short break after every two sessions."}</span></div></aside></section>
+      <section className="focus-history"><Panel title={isArabic ? "آخر الجلسات" : "Recent sessions"}><div className="session-list"><div><span className="session-dot mint" /><strong>{isArabic ? "شطرنج — ألغاز تكتيكية" : "Chess — tactical puzzles"}</strong><small>25 {copy.minutes} · {copy.today}</small></div><div><span className="session-dot blue" /><strong>{isArabic ? "لغة — مراجعة مفردات" : "Language — vocabulary review"}</strong><small>30 {copy.minutes} · {isArabic ? "أمس" : "Yesterday"}</small></div><div><span className="session-dot amber" /><strong>{isArabic ? "مونتاج — مشاهدة درس" : "Editing — lesson study"}</strong><small>50 {copy.minutes} · {isArabic ? "أمس" : "Yesterday"}</small></div></div></Panel></section>
+    </>;
+  }
+
+  function renderStats() {
+    return <>
+      <PageIntro eyebrow={isArabic ? "نمو واضح" : "Visible growth"} title={copy.weekly} subtitle={isArabic ? "بدون ضغط: أرقام بسيطة تساعدك على الاستمرار." : "No pressure: simple signals that help you keep moving."} />
+      <div className="stats-hero-grid"><Panel className="insight-panel"><div className="insight-top"><div><p className="eyebrow">{copy.completion}</p><h2>{completionRate}%</h2><p>{isArabic ? "من مهامك الحالية مكتملة" : "of current tasks completed"}</p></div><ProgressRing value={completionRate} label={copy.completion} /></div><ProgressBar value={completionRate} label={copy.completion} /></Panel><Panel className="streak-panel"><Flame size={30} /><div><p>{copy.streak}</p><h2>6 {isArabic ? "أيام" : "days"}</h2><span>{isArabic ? "أفضل سلسلة: 11 يومًا" : "Best streak: 11 days"}</span></div></Panel><Panel className="xp-panel"><Sparkles size={24} /><p>{isArabic ? "مستواك الحالي" : "Your current level"}</p><h2>Level 04</h2><ProgressBar value={72} tone="violet" label="Level progress" /><small>720 / 1000 XP</small></Panel></div>
+      <div className="stats-grid"><Panel title={copy.weekly} subtitle={isArabic ? "دقائق تركيز" : "Focus minutes"} className="wide-chart"><div className="bar-chart large">{chartValues.map((value, index) => <div className="bar-column" key={index}><i style={{ height: `${value}%` }} /><span>{["Sat", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri"][index]}</span></div>)}</div></Panel><Panel title={isArabic ? "تقدم المسارات" : "Path progress"}>{state.paths.map((path) => <div className="stats-path" key={path.id}><div><span className={`color-dot ${path.color}`} /><strong>{path.title}</strong><small>{path.completedSteps}/{path.steps}</small></div><ProgressBar value={pathProgress(path)} tone={path.color} label={path.title} /></div>)}</Panel></div>
+      <Panel title={isArabic ? "الشارات التي فتحتها" : "Unlocked badges"}><div className="badge-row"><Badge icon={<Flame size={21} />} title={isArabic ? "نفس ثابت" : "Steady pace"} detail={isArabic ? "5 أيام متتالية" : "5-day streak"} /><Badge icon={<Focus size={21} />} title={isArabic ? "تركيز عميق" : "Deep focus"} detail={isArabic ? "5 ساعات" : "5 hours"} /><Badge icon={<BookOpen size={21} />} title={isArabic ? "قارئ واعٍ" : "Intentional reader"} detail={isArabic ? "3 كتب" : "3 books"} /><Badge icon={<BrainCircuit size={21} />} title={isArabic ? "جامع أفكار" : "Idea keeper"} detail={isArabic ? "10 ملاحظات" : "10 notes"} /></div></Panel>
+    </>;
+  }
+
+  function renderSettings() {
+    return <>
+      <PageIntro eyebrow="Noum List" title={copy.settings} subtitle={isArabic ? "خيارات تحفظ على هذا المتصفح فقط." : "Preferences that stay in this browser only."} />
+      <div className="settings-stack"><Panel title={copy.language}><div className="setting-row"><div><strong>{copy.language}</strong><span>{isArabic ? "بدّل اتجاه المحتوى ولغة الواجهة فورًا." : "Switch content direction and interface copy instantly."}</span></div><div className="segment-control"><button className={locale === "ar" ? "active" : ""} type="button" onClick={() => setState((current) => ({ ...current, locale: "ar" }))}>{copy.arabic}</button><button className={locale === "en" ? "active" : ""} type="button" onClick={() => setState((current) => ({ ...current, locale: "en" }))}>{copy.english}</button></div></div></Panel><Panel title={copy.focusRoom}><div className="setting-row"><div><strong>{copy.sound}</strong><span>{isArabic ? "يُشغّل صوتًا بسيطًا بعد إنهاء جلسة ناجحة." : "Plays a subtle sound after a completed session."}</span></div><button className={`switch ${state.soundEnabled ? "enabled" : ""}`} aria-label={copy.sound} type="button" onClick={() => setState((current) => ({ ...current, soundEnabled: !current.soundEnabled }))}><i /></button></div></Panel><Panel title={copy.resetData}><div className="setting-row"><div><strong>{copy.resetData}</strong><span>{copy.resetDescription}</span></div><button className="danger-button" type="button" onClick={() => { setState(resetNoumState()); setActiveView("dashboard"); notify(copy.resetConfirm); }}><RotateCcw size={16} /> {copy.resetData}</button></div></Panel></div>
+    </>;
+  }
+
+  const viewContent: Record<ViewId, () => React.ReactNode> = { dashboard: renderDashboard, paths: renderPaths, brain: renderBrain, learning: renderLearning, library: renderLibrary, focus: renderFocus, stats: renderStats, settings: renderSettings };
+
+  return <div className="app-shell" dir={isArabic ? "rtl" : "ltr"}>
+    <aside className={`sidebar ${mobileOpen ? "mobile-open" : ""}`}>
+      <div className="sidebar-top"><BrandMark /><IconButton label={copy.close} className="sidebar-close" onClick={() => setMobileOpen(false)}><X size={20} /></IconButton></div>
+      <nav className="side-nav" aria-label="Primary navigation">{navigation.map((item) => { const Icon = item.icon; const active = activeView === item.id; return <button key={item.id} className={active ? "active" : ""} type="button" onClick={() => changeView(item.id)}><Icon size={19} strokeWidth={active ? 2.3 : 1.85} /><span>{isArabic ? item.ar : item.en}</span>{item.id === "learning" && dueCards.length ? <b>{dueCards.length}</b> : null}</button>; })}</nav>
+      <div className="sidebar-bottom"><button className="shortcut-hint" type="button" onClick={() => setShowNewTask(true)}><Keyboard size={15} /><span>{isArabic ? "التقاط فكرة" : "Capture thought"}</span><kbd>⌘ K</kbd></button><div className="profile-card"><span className="profile-avatar">ن</span><div><strong>{isArabic ? "مستخدم Noum" : "Noum user"}</strong><small>Level 04 · 720 XP</small></div><MoreButton label="Profile actions" /></div></div>
+    </aside>
+    {mobileOpen ? <button className="nav-backdrop" aria-label={copy.close} type="button" onClick={() => setMobileOpen(false)} /> : null}
+    <main className="main-content"><div className="topbar"><IconButton label={copy.mobileMenu} className="mobile-menu" onClick={() => setMobileOpen(true)}><Menu size={21} /></IconButton><div className="command-search"><Search size={18} /><span>{copy.command}</span><kbd>⌘ K</kbd></div><div className="topbar-actions"><IconButton label="Notifications" className="notification-button"><Bell size={19} /><i /></IconButton><div className="date-chip"><Clock3 size={16} /><span>{isArabic ? "السبت، 16 أغسطس" : "Saturday, August 16"}</span></div></div></div><div className="workspace">{viewContent[activeView]()}</div></main>
+    {toast ? <div className="toast-message" role="status"><Check size={17} />{toast}</div> : null}
+    {showNewTask ? <Modal title={copy.addTask} onClose={() => setShowNewTask(false)}><label className="field-label">{copy.addTask}<input autoFocus value={newTaskTitle} onChange={(event) => setNewTaskTitle(event.target.value)} placeholder={copy.taskPlaceholder} onKeyDown={(event) => { if (event.key === "Enter") addTask(); }} /></label><div className="modal-actions"><button className="ghost-button" type="button" onClick={() => setShowNewTask(false)}>{copy.cancel}</button><button className="primary-button" type="button" onClick={addTask}>{copy.save}</button></div></Modal> : null}
+    {showNewPath ? <Modal title={copy.newPath} onClose={() => setShowNewPath(false)}><label className="field-label">{copy.pathName}<input autoFocus value={newPathTitle} onChange={(event) => setNewPathTitle(event.target.value)} placeholder={isArabic ? "مثال: تعلّم الرسم الرقمي" : "Example: Learn digital art"} /></label><label className="field-label">{copy.pathDesc}<textarea value={newPathDescription} onChange={(event) => setNewPathDescription(event.target.value)} placeholder={isArabic ? "صف النتيجة التي تريدها…" : "Describe the outcome you want…"} rows={3} /></label><div className="modal-actions"><button className="ghost-button" type="button" onClick={() => setShowNewPath(false)}>{copy.cancel}</button><button className="primary-button" type="button" onClick={addPath}>{copy.create}</button></div></Modal> : null}
+    {newNote ? <Modal title={copy.newNote} onClose={() => setNewNote(false)}><label className="field-label">{copy.newNoteTitle}<input autoFocus value={newNoteTitle} onChange={(event) => setNewNoteTitle(event.target.value)} /></label><label className="field-label">Markdown<textarea value={newNoteBody} onChange={(event) => setNewNoteBody(event.target.value)} placeholder={copy.newNoteBody} rows={7} /></label><div className="modal-actions"><button className="ghost-button" type="button" onClick={() => setNewNote(false)}>{copy.cancel}</button><button className="primary-button" type="button" onClick={saveNote}>{copy.saveNote}</button></div></Modal> : null}
+  </div>;
+}
+
+function PageIntro({ eyebrow, title, subtitle, action }: { eyebrow: string; title: string; subtitle: string; action?: React.ReactNode }) { return <header className="page-header"><div><p className="eyebrow">{eyebrow}</p><h1>{title}</h1><p className="page-subtitle">{subtitle}</p></div>{action ? <div className="header-actions">{action}</div> : null}</header>; }
+function MetricCard({ icon, value, label, detail, tone }: { icon: React.ReactNode; value: string; label: string; detail: string; tone: string }) { return <article className={`metric-card ${tone}`}><div className="metric-icon">{icon}</div><div><strong>{value}</strong><span>{label}</span><small>{detail}</small></div></article>; }
+function EmptyState({ icon, text }: { icon: React.ReactNode; text: string }) { return <div className="empty-state"><span>{icon}</span><p>{text}</p></div>; }
+function TaskRow({ task, locale, onToggle }: { task: Task; locale: Locale; onToggle: () => void }) { const c = localeCopy[locale]; return <article className={`task-row ${task.completed ? "completed" : ""}`}><CompletionBox checked={task.completed} onClick={onToggle} label={task.title} /><div className="task-copy"><strong>{task.title}</strong><span><i className={`priority-dot ${task.priority}`} />{priorityLabel(task.priority, locale)} <b>·</b> <Clock3 size={13} /> {task.minutes} {c.minutes}</span></div><div className="task-due">{task.due === "اليوم" || task.due === "Today" ? c.today : c.tomorrow}</div></article>; }
+function PathMini({ path, locale, onContinue }: { path: NoumState["paths"][number]; locale: Locale; onContinue: () => void }) { const progress = pathProgress(path); return <article className="path-mini"><div className={`path-badge ${path.color}`}><FolderKanban size={17} /></div><div className="path-mini-copy"><strong>{path.title}</strong><span>{path.completedSteps}/{path.steps} · {progress}%</span><ProgressBar value={progress} tone={path.color} label={path.title} /></div><button className="arrow-button" onClick={onContinue} type="button" aria-label={`${localeCopy[locale].continue} ${path.title}`}><ChevronLeft size={18} /></button></article>; }
+function PathCard({ path, locale, onContinue }: { path: NoumState["paths"][number]; locale: Locale; onContinue: () => void }) { const progress = pathProgress(path); return <article className={`path-card-web ${path.color}`}><div className="path-card-top"><span className="path-category">{path.category}</span><div className={`path-badge ${path.color}`}><FolderKanban size={19} /></div></div><h2>{path.title}</h2><p>{path.description}</p><div className="path-card-progress"><div><span>{localeCopy[locale].completion}</span><strong>{progress}%</strong></div><ProgressBar value={progress} tone={path.color} label={path.title} /></div><div className="path-card-footer"><span><Flame size={15} /> {path.streak}</span><button className="soft-button" type="button" onClick={onContinue}>{localeCopy[locale].continue} <ChevronLeft size={15} /></button></div></article>; }
+function Badge({ icon, title, detail }: { icon: React.ReactNode; title: string; detail: string }) { return <article className="badge"><span>{icon}</span><div><strong>{title}</strong><small>{detail}</small></div></article>; }
+function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) { return <div className="modal-layer" role="dialog" aria-modal="true" aria-label={title}><button className="modal-backdrop" type="button" onClick={onClose} aria-label="Close modal" /><section className="modal-card"><div className="modal-heading"><h2>{title}</h2><IconButton label="Close" onClick={onClose}><X size={20} /></IconButton></div>{children}</section></div>; }
+
+export default App;
