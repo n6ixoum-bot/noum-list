@@ -21,3 +21,7 @@ The preview loads the RTL web dashboard, shows the current Arabic date, and refl
 ## Library interaction verification
 
 The library route opened successfully in the web preview. It exposes an Arabic search field and three filters: all books, in progress, and finished. Entering `Deep` reduced the visible results to only **Deep Work**, confirming the search is functional rather than decorative.
+
+## Clean-start verification
+
+The new storage key (`noum-list-web-v2`) correctly invalidated the previous seeded browser state. The dashboard now shows 0 tasks, 0.0 focus hours, 0 streak, and 0 due cards. The library shows its intentional empty state with no Atomic Habits/Deep Work/The Creative Act cards. The API health route `/api/health` returned HTTP 200 with security headers.

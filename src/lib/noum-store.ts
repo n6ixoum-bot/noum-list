@@ -1,7 +1,8 @@
 import type { Flashcard, KnowledgeNote, LibraryBook, LearningPath, NoumState, Task } from "../types";
 
-const STORE_KEY = "noum-list-web-v1";
-const STORE_VERSION = 2;
+const STORE_KEY = "noum-list-web-v2";
+const LEGACY_STORE_KEY = "noum-list-web-v1";
+const STORE_VERSION = 3;
 
 type PersistedNoumState = Partial<NoumState> & { version?: number };
 
@@ -82,13 +83,13 @@ export const seedBooks: LibraryBook[] = [
 
 export const seedState: NoumState = {
   locale: "ar",
-  tasks: seedTasks,
-  paths: seedPaths,
-  notes: seedNotes,
-  flashcards: seedFlashcards,
-  books: seedBooks,
-  focusMinutes: 30,
-  soundEnabled: true,
+  tasks: [],
+  paths: [],
+  notes: [],
+  flashcards: [],
+  books: [],
+  focusMinutes: 0,
+  soundEnabled: false,
 };
 
 function copySeed(): NoumState {
@@ -115,7 +116,10 @@ export function loadNoumState(): NoumState {
   if (typeof window === "undefined") return copySeed();
   try {
     const raw = window.localStorage.getItem(STORE_KEY);
-    if (!raw) return copySeed();
+    if (!raw) {
+      window.localStorage.removeItem(LEGACY_STORE_KEY);
+      return copySeed();
+    }
     const parsed = JSON.parse(raw) as PersistedNoumState;
     return normalizeState(parsed);
   } catch {
