@@ -9,6 +9,18 @@ function getQueryParam(req: Request, key: string): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
+function getSafeFrontendUrl(req: Request, encodedState: string) {
+  const fallback = process.env.EXPO_WEB_PREVIEW_URL || process.env.EXPO_PACKAGER_PROXY_URL || `${req.protocol}://${req.get("host")}`;
+  try {
+    const decoded = Buffer.from(encodedState, "base64").toString("utf8");
+    const requested = new URL(decoded);
+    const current = new URL(fallback);
+    return requested.origin === current.origin ? requested.toString() : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 async function syncUser(userInfo: {
   openId?: string | null;
   name?: string | null;
@@ -83,13 +95,7 @@ export function registerOAuthRoutes(app: Express) {
       const cookieOptions = getSessionCookieOptions(req);
       res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
 
-      // Redirect to the frontend URL (Expo web on port 8081)
-      // Cookie is set with parent domain so it works across both 3000 and 8081 subdomains
-      const frontendUrl =
-        process.env.EXPO_WEB_PREVIEW_URL ||
-        process.env.EXPO_PACKAGER_PROXY_URL ||
-        "http://localhost:8081";
-      res.redirect(302, frontendUrl);
+      res.redirect(302, getSafeFrontendUrl(req, state));
     } catch (error) {
       console.error("[OAuth] Callback failed", error);
       res.status(500).json({ error: "OAuth callback failed" });

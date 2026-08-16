@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -25,4 +25,17 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-// TODO: Add your tables here
+/** One validated Noum List snapshot per authenticated user for optional cross-device sync. */
+export const noumSyncSnapshots = mysqlTable("noum_sync_snapshots", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  version: int("version").notNull().default(1),
+  payload: text("payload").notNull(),
+  checksum: varchar("checksum", { length: 64 }).notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  userUnique: uniqueIndex("noum_sync_snapshots_user_id_unique").on(table.userId),
+}));
+
+export type NoumSyncSnapshot = typeof noumSyncSnapshots.$inferSelect;
+export type InsertNoumSyncSnapshot = typeof noumSyncSnapshots.$inferInsert;

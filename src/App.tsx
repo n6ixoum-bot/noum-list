@@ -36,7 +36,10 @@ import {
   X,
 } from "lucide-react";
 import { BrandMark, CompletionBox, IconButton, MoreButton, Panel, ProgressBar, ProgressRing } from "./components/ui";
+import { BackupPanel } from "./components/backup-panel";
+import { downloadBackup, makeCloudBackup, parseCloudBackup, readBackupFile, type BackupEnvelope } from "./lib/noum-backup";
 import { loadNoumState, resetNoumState, saveNoumState } from "./lib/noum-store";
+import { getRemoteSnapshot, getSyncStatus, startSyncLogin, uploadSnapshot, type RemoteSnapshot, type SyncUser } from "./lib/sync-client";
 import type { Locale, NoumState, Task, TaskPriority, ViewId } from "./types";
 
 const navigation: { id: ViewId; ar: string; en: string; icon: typeof LayoutDashboard }[] = [
@@ -237,6 +240,12 @@ function App() {
   const [secondsLeft, setSecondsLeft] = useState(25 * 60);
   const [timerRunning, setTimerRunning] = useState(false);
   const [showAnswer, setShowAnswer] = useState(false);
+  const [syncUser, setSyncUser] = useState<SyncUser | null>(null);
+  const [remoteSnapshot, setRemoteSnapshot] = useState<RemoteSnapshot | null>(null);
+  const [syncBusy, setSyncBusy] = useState(false);
+  const [pendingRestore, setPendingRestore] = useState<BackupEnvelope | null>(null);
+  const [restoreSource, setRestoreSource] = useState<"local" | "cloud">("local");
+  const [confirmCloudOverwrite, setConfirmCloudOverwrite] = useState(false);
 
   const locale = state.locale;
   const copy = localeCopy[locale];
@@ -264,6 +273,9 @@ function App() {
     const timeout = window.setTimeout(() => setToast(""), 3400);
     return () => window.clearTimeout(timeout);
   }, [toast]);
+  useEffect(() => {
+    void refreshSyncStatus();
+  }, []);
 
   const completedTasks = state.tasks.filter((task) => task.completed).length;
   const completionRate = state.tasks.length ? Math.round((completedTasks / state.tasks.length) * 100) : 0;
@@ -356,6 +368,80 @@ function App() {
   }
 
   function resetFocus(minutes: number = 25) { setTimerRunning(false); setSecondsLeft(minutes * 60); }
+
+  async function refreshSyncStatus() {
+    try {
+      const status = await getSyncStatus();
+      setSyncUser(status.user);
+      if (status.user) {
+        const remote = await getRemoteSnapshot();
+        setRemoteSnapshot(remote.snapshot);
+      }
+    } catch {
+      setSyncUser(null);
+      setRemoteSnapshot(null);
+    }
+  }
+
+  function exportBackup() {
+    downloadBackup(state);
+    notify(isArabic ? "تم تنزيل النسخة الاحتياطية المحلية." : "Your local backup was downloaded.");
+  }
+
+  async function importBackup(file: File) {
+    try {
+      const backup = await readBackupFile(file);
+      setRestoreSource("local");
+      setPendingRestore(backup);
+    } catch {
+      notify(isArabic ? "تعذر قراءة الملف. اختر نسخة Noum List احتياطية صالحة." : "We could not read that file. Choose a valid Noum List backup.");
+    }
+  }
+
+  function applyRestore() {
+    if (!pendingRestore) return;
+    setState(pendingRestore.state);
+    setPendingRestore(null);
+    notify(isArabic ? "تمت استعادة بياناتك محليًا." : "Your data was restored locally.");
+  }
+
+  async function uploadCloudBackup() {
+    if (!syncUser) return;
+    setSyncBusy(true);
+    try {
+      const backup = await makeCloudBackup(state);
+      const saved = await uploadSnapshot(backup);
+      setRemoteSnapshot({ ...backup, updatedAt: saved.updatedAt });
+      notify(isArabic ? "تم حفظ نسخة مشفّرة في حسابك." : "An encrypted snapshot was saved to your account.");
+    } catch (error) {
+      notify(isArabic ? "تعذرت المزامنة الآن. بقيت بياناتك المحلية آمنة." : "Sync is unavailable right now. Your local data is still safe.");
+      if (error instanceof Error && error.message === "UNAUTHORIZED") setSyncUser(null);
+    } finally {
+      setSyncBusy(false);
+    }
+  }
+
+  function requestCloudBackup() {
+    if (remoteSnapshot) {
+      setConfirmCloudOverwrite(true);
+      return;
+    }
+    void uploadCloudBackup();
+  }
+
+  async function restoreCloudBackup() {
+    if (!remoteSnapshot) return;
+    setSyncBusy(true);
+    try {
+      const backup = await parseCloudBackup(remoteSnapshot.payload, remoteSnapshot.checksum);
+      setRestoreSource("cloud");
+      setPendingRestore(backup);
+    } catch {
+      notify(isArabic ? "تعذر التحقق من النسخة السحابية." : "We could not verify the cloud snapshot.");
+    } finally {
+      setSyncBusy(false);
+    }
+  }
 
   function renderDashboard() {
     const todayTasks = state.tasks.filter((task) => task.due === copy.today || task.due === "اليوم" || task.due === "Today");
@@ -489,7 +575,12 @@ function App() {
   function renderSettings() {
     return <>
       <PageIntro eyebrow="Noum List" title={copy.settings} subtitle={isArabic ? "خيارات تحفظ على هذا المتصفح فقط." : "Preferences that stay in this browser only."} />
-      <div className="settings-stack"><Panel title={copy.language}><div className="setting-row"><div><strong>{copy.language}</strong><span>{isArabic ? "بدّل اتجاه المحتوى ولغة الواجهة فورًا." : "Switch content direction and interface copy instantly."}</span></div><div className="segment-control"><button className={locale === "ar" ? "active" : ""} type="button" onClick={() => setState((current) => ({ ...current, locale: "ar" }))}>{copy.arabic}</button><button className={locale === "en" ? "active" : ""} type="button" onClick={() => setState((current) => ({ ...current, locale: "en" }))}>{copy.english}</button></div></div></Panel><Panel title={copy.focusRoom}><div className="setting-row"><div><strong>{copy.sound}</strong><span>{isArabic ? "يُشغّل صوتًا بسيطًا بعد إنهاء جلسة ناجحة." : "Plays a subtle sound after a completed session."}</span></div><button className={`switch ${state.soundEnabled ? "enabled" : ""}`} aria-label={copy.sound} type="button" onClick={() => setState((current) => ({ ...current, soundEnabled: !current.soundEnabled }))}><i /></button></div></Panel><Panel title={copy.resetData}><div className="setting-row"><div><strong>{copy.resetData}</strong><span>{copy.resetDescription}</span></div><button className="danger-button" type="button" onClick={() => { setState(resetNoumState()); setActiveView("dashboard"); notify(copy.resetConfirm); }}><RotateCcw size={16} /> {copy.resetData}</button></div></Panel></div>
+      <div className="settings-stack">
+        <BackupPanel locale={locale} user={syncUser} remoteUpdatedAt={remoteSnapshot?.updatedAt ?? null} busy={syncBusy} onExport={exportBackup} onImport={importBackup} onLogin={startSyncLogin} onUpload={requestCloudBackup} onRestoreRemote={() => void restoreCloudBackup()} />
+        <Panel title={copy.language}><div className="setting-row"><div><strong>{copy.language}</strong><span>{isArabic ? "بدّل اتجاه المحتوى ولغة الواجهة فورًا." : "Switch content direction and interface copy instantly."}</span></div><div className="segment-control"><button className={locale === "ar" ? "active" : ""} type="button" onClick={() => setState((current) => ({ ...current, locale: "ar" }))}>{copy.arabic}</button><button className={locale === "en" ? "active" : ""} type="button" onClick={() => setState((current) => ({ ...current, locale: "en" }))}>{copy.english}</button></div></div></Panel>
+        <Panel title={copy.focusRoom}><div className="setting-row"><div><strong>{copy.sound}</strong><span>{isArabic ? "يُشغّل صوتًا بسيطًا بعد إنهاء جلسة ناجحة." : "Plays a subtle sound after a completed session."}</span></div><button className={`switch ${state.soundEnabled ? "enabled" : ""}`} aria-label={copy.sound} type="button" onClick={() => setState((current) => ({ ...current, soundEnabled: !current.soundEnabled }))}><i /></button></div></Panel>
+        <Panel title={copy.resetData}><div className="setting-row"><div><strong>{copy.resetData}</strong><span>{copy.resetDescription}</span></div><button className="danger-button" type="button" onClick={() => { setState(resetNoumState()); setActiveView("dashboard"); notify(copy.resetConfirm); }}><RotateCcw size={16} /> {copy.resetData}</button></div></Panel>
+      </div>
     </>;
   }
 
@@ -507,6 +598,8 @@ function App() {
     {showNewTask ? <Modal title={copy.addTask} onClose={() => setShowNewTask(false)}><label className="field-label">{copy.addTask}<input autoFocus value={newTaskTitle} onChange={(event) => setNewTaskTitle(event.target.value)} placeholder={copy.taskPlaceholder} onKeyDown={(event) => { if (event.key === "Enter") addTask(); }} /></label><div className="modal-actions"><button className="ghost-button" type="button" onClick={() => setShowNewTask(false)}>{copy.cancel}</button><button className="primary-button" type="button" onClick={addTask}>{copy.save}</button></div></Modal> : null}
     {showNewPath ? <Modal title={copy.newPath} onClose={() => setShowNewPath(false)}><label className="field-label">{copy.pathName}<input autoFocus value={newPathTitle} onChange={(event) => setNewPathTitle(event.target.value)} placeholder={isArabic ? "مثال: تعلّم الرسم الرقمي" : "Example: Learn digital art"} /></label><label className="field-label">{copy.pathDesc}<textarea value={newPathDescription} onChange={(event) => setNewPathDescription(event.target.value)} placeholder={isArabic ? "صف النتيجة التي تريدها…" : "Describe the outcome you want…"} rows={3} /></label><div className="modal-actions"><button className="ghost-button" type="button" onClick={() => setShowNewPath(false)}>{copy.cancel}</button><button className="primary-button" type="button" onClick={addPath}>{copy.create}</button></div></Modal> : null}
     {newNote ? <Modal title={copy.newNote} onClose={() => setNewNote(false)}><label className="field-label">{copy.newNoteTitle}<input autoFocus value={newNoteTitle} onChange={(event) => setNewNoteTitle(event.target.value)} /></label><label className="field-label">Markdown<textarea value={newNoteBody} onChange={(event) => setNewNoteBody(event.target.value)} placeholder={copy.newNoteBody} rows={7} /></label><div className="modal-actions"><button className="ghost-button" type="button" onClick={() => setNewNote(false)}>{copy.cancel}</button><button className="primary-button" type="button" onClick={saveNote}>{copy.saveNote}</button></div></Modal> : null}
+    {pendingRestore ? <Modal title={isArabic ? "تأكيد الاستعادة" : "Confirm restore"} onClose={() => setPendingRestore(null)}><p className="restore-message">{isArabic ? `سيتم استبدال بيانات هذا المتصفح بالنسخة ${restoreSource === "cloud" ? "السحابية" : "المحلية"} التي أُنشئت في ${new Intl.DateTimeFormat("ar-SA", { dateStyle: "medium", timeStyle: "short" }).format(new Date(pendingRestore.createdAt))}. نزّل نسخة محلية أولًا إذا كنت تريد الاحتفاظ بالحالة الحالية.` : `This will replace this browser’s data with the ${restoreSource === "cloud" ? "cloud" : "local"} backup created ${new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(pendingRestore.createdAt))}. Download a local backup first if you want to keep the current state.`}</p><div className="modal-actions"><button className="ghost-button" type="button" onClick={() => setPendingRestore(null)}>{copy.cancel}</button><button className="primary-button" type="button" onClick={applyRestore}>{isArabic ? "استعادة البيانات" : "Restore data"}</button></div></Modal> : null}
+    {confirmCloudOverwrite ? <Modal title={isArabic ? "استبدال النسخة السحابية" : "Replace cloud snapshot"} onClose={() => setConfirmCloudOverwrite(false)}><p className="restore-message">{isArabic ? "توجد نسخة محفوظة في حسابك. سيحل وضعك المحلي الحالي محلها بعد التأكيد، ولن تتغير بيانات هذا المتصفح." : "A snapshot is already saved in your account. Your current local state will replace it after confirmation; this browser’s data will not change."}</p><div className="modal-actions"><button className="ghost-button" type="button" onClick={() => setConfirmCloudOverwrite(false)}>{copy.cancel}</button><button className="primary-button" type="button" onClick={() => { setConfirmCloudOverwrite(false); void uploadCloudBackup(); }}>{isArabic ? "استبدال النسخة" : "Replace snapshot"}</button></div></Modal> : null}
   </div>;
 }
 

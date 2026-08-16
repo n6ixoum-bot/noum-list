@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { InsertNoumSyncSnapshot, InsertUser, noumSyncSnapshots, users } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -89,4 +89,23 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+export async function getNoumSyncSnapshot(userId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(noumSyncSnapshots).where(eq(noumSyncSnapshots.userId, userId)).limit(1);
+  return result[0];
+}
+
+export async function upsertNoumSyncSnapshot(snapshot: Omit<InsertNoumSyncSnapshot, "id" | "updatedAt">) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.insert(noumSyncSnapshots).values(snapshot).onDuplicateKeyUpdate({
+    set: {
+      version: snapshot.version,
+      payload: snapshot.payload,
+      checksum: snapshot.checksum,
+      updatedAt: new Date(),
+    },
+  });
+  return getNoumSyncSnapshot(snapshot.userId);
+}
