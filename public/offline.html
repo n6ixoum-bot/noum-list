@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#080b09" />
+    <title>Noum List — دون اتصال</title>
+    <style>
+      :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #080b09; color: #f0f7f2; }
+      body { min-height: 100vh; margin: 0; display: grid; place-items: center; background: radial-gradient(circle at 50% 0%, rgba(72,226,163,.12), transparent 28rem), #080b09; }
+      main { max-width: 360px; padding: 28px; text-align: center; }
+      .mark { width: 54px; height: 54px; display: grid; place-items: center; margin: 0 auto 20px; border-radius: 18px; background: rgba(72,226,163,.12); color: #48e2a3; font: 800 25px/1 system-ui; }
+      h1 { margin: 0 0 10px; font-size: 22px; }
+      p { margin: 0; color: #94a99b; font-size: 14px; line-height: 1.8; }
+      button { margin-top: 22px; min-height: 40px; padding: 0 14px; border: 0; border-radius: 10px; background: #48e2a3; color: #062616; font: 800 13px system-ui; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="mark">ن</div>
+      <h1>أنت دون اتصال الآن</h1>
+      <p>افتح Noum List بعد اتصال واحد بالإنترنت لتبقى مساحة عملك متاحة دون شبكة. بياناتك المحلية تبقى محفوظة على هذا الجهاز.</p>
+      <button type="button" onclick="location.reload()">إعادة المحاولة</button>
+    </main>
+  </body>
+</html>

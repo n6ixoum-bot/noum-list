@@ -5,8 +5,15 @@
   "start_url": "/",
   "display": "standalone",
   "background_color": "#080b09",
-  "theme_color": "#35d89a",
+  "theme_color": "#080b09",
   "lang": "ar",
   "dir": "rtl",
-  "icons": []
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
 }

@@ -128,3 +128,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px
 .focus-session strong { display: block; color: var(--text); font: 700 11px "Manrope"; }
 .focus-session small { display: block; overflow: hidden; color: var(--muted-2); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 .focus-session time { grid-column: 2; color: var(--muted-2); font: 8.5px "Manrope"; }
+
+/* Connection state */
+.offline-indicator { min-height: 28px; display: inline-flex; align-items: center; gap: 5px; padding: 0 8px; border: 1px solid rgba(244,191,103,.22); border-radius: 8px; background: rgba(244,191,103,.08); color: var(--amber); font-size: 9.5px; white-space: nowrap; }
+@media (max-width: 760px) { .offline-indicator span { display: none; } .offline-indicator { width: 29px; padding: 0; justify-content: center; } }

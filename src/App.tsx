@@ -33,6 +33,7 @@ import {
   Trophy,
   Upload,
   Volume2,
+  WifiOff,
   X,
 } from "lucide-react";
 import { BrandMark, CompletionBox, EmptyState, IconButton, MoreButton, Panel, ProgressBar, ProgressRing } from "./components/ui";
@@ -251,6 +252,7 @@ function App() {
   const [confirmCloudOverwrite, setConfirmCloudOverwrite] = useState(false);
   const [libraryQuery, setLibraryQuery] = useState("");
   const [libraryFilter, setLibraryFilter] = useState<"all" | "active" | "finished">("all");
+  const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine);
   const pdfInput = useRef<HTMLInputElement>(null);
 
   const locale = state.locale;
@@ -262,6 +264,16 @@ function App() {
     return () => window.clearTimeout(timeout);
   }, [state]);
   useEffect(() => { document.documentElement.lang = locale; document.documentElement.dir = isArabic ? "rtl" : "ltr"; }, [isArabic, locale]);
+  useEffect(() => {
+    const markOnline = () => setIsOnline(true);
+    const markOffline = () => setIsOnline(false);
+    window.addEventListener("online", markOnline);
+    window.addEventListener("offline", markOffline);
+    return () => {
+      window.removeEventListener("online", markOnline);
+      window.removeEventListener("offline", markOffline);
+    };
+  }, []);
   useEffect(() => {
     if (!timerRunning) return;
     const interval = window.setInterval(() => {
@@ -672,7 +684,7 @@ function App() {
       <div className="sidebar-bottom"><button className="shortcut-hint" type="button" onClick={() => setShowNewTask(true)}><Keyboard size={15} /><span>{isArabic ? "التقاط فكرة" : "Capture thought"}</span><kbd>⌘ K</kbd></button><div className="profile-card"><span className="profile-avatar">ن</span><div><strong>{isArabic ? "مساحتي" : "My workspace"}</strong><small>Level {level.toString().padStart(2, "0")} · {xpTotal} XP</small></div><MoreButton label="Profile actions" /></div></div>
     </aside>
     {mobileOpen ? <button className="nav-backdrop" aria-label={copy.close} type="button" onClick={() => setMobileOpen(false)} /> : null}
-    <main className="main-content"><div className="topbar"><IconButton label={copy.mobileMenu} className="mobile-menu" onClick={() => setMobileOpen(true)}><Menu size={21} /></IconButton><button className="command-search" type="button" aria-label={copy.command} onClick={() => setShowNewTask(true)}><Search size={18} /><span>{copy.command}</span><kbd>⌘ K</kbd></button><div className="topbar-actions"><IconButton label="Notifications" className="notification-button"><Bell size={19} /><i /></IconButton><div className="date-chip"><Clock3 size={16} /><span>{todayLabel}</span></div></div></div><div className="workspace">{viewContent[activeView]()}</div></main>
+    <main className="main-content"><div className="topbar"><IconButton label={copy.mobileMenu} className="mobile-menu" onClick={() => setMobileOpen(true)}><Menu size={21} /></IconButton><button className="command-search" type="button" aria-label={copy.command} onClick={() => setShowNewTask(true)}><Search size={18} /><span>{copy.command}</span><kbd>⌘ K</kbd></button><div className="topbar-actions">{!isOnline ? <div className="offline-indicator" role="status"><WifiOff size={14} /><span>{isArabic ? "دون اتصال — محفوظ محليًا" : "Offline — saved locally"}</span></div> : null}<IconButton label="Notifications" className="notification-button"><Bell size={19} /><i /></IconButton><div className="date-chip"><Clock3 size={16} /><span>{todayLabel}</span></div></div></div><div className="workspace">{viewContent[activeView]()}</div></main>
     {toast ? <div className="toast-message" role="status"><Check size={17} />{toast}</div> : null}
     {showNewTask ? <Modal title={copy.addTask} onClose={() => setShowNewTask(false)}><label className="field-label">{copy.addTask}<input autoFocus value={newTaskTitle} onChange={(event) => setNewTaskTitle(event.target.value)} placeholder={copy.taskPlaceholder} onKeyDown={(event) => { if (event.key === "Enter") addTask(); }} /></label><div className="modal-actions"><button className="ghost-button" type="button" onClick={() => setShowNewTask(false)}>{copy.cancel}</button><button className="primary-button" type="button" onClick={addTask}>{copy.save}</button></div></Modal> : null}
     {showNewPath ? <Modal title={copy.newPath} onClose={() => setShowNewPath(false)}><label className="field-label">{copy.pathName}<input autoFocus value={newPathTitle} onChange={(event) => setNewPathTitle(event.target.value)} placeholder={isArabic ? "مثال: تعلّم الرسم الرقمي" : "Example: Learn digital art"} /></label><label className="field-label">{copy.pathDesc}<textarea value={newPathDescription} onChange={(event) => setNewPathDescription(event.target.value)} placeholder={isArabic ? "صف النتيجة التي تريدها…" : "Describe the outcome you want…"} rows={3} /></label><div className="modal-actions"><button className="ghost-button" type="button" onClick={() => setShowNewPath(false)}>{copy.cancel}</button><button className="primary-button" type="button" onClick={addPath}>{copy.create}</button></div></Modal> : null}
