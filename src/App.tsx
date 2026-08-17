@@ -10,6 +10,7 @@ import {
   ClipboardCheck,
   Clock3,
   Coffee,
+  Download,
   Flame,
   Focus,
   FolderKanban,
@@ -137,6 +138,10 @@ const localeCopy = {
     bookUpdated: "تم حفظ تقدم القراءة.",
     mobileMenu: "فتح القائمة",
     command: "البحث أو تنفيذ أمر",
+    androidApp: "تطبيق أندرويد",
+    androidAppDescription: "نسخة أندرويد محلية من Noum List تعمل من دون شبكة بعد التثبيت.",
+    buildApk: "إنشاء APK",
+    apkHint: "مشروع أندرويد جاهز. استخدم زر Publish لإنشاء ملف APK قابل للتنزيل.",
   },
   en: {
     greeting: "A calm evening,",
@@ -219,6 +224,10 @@ const localeCopy = {
     bookUpdated: "Reading progress saved.",
     mobileMenu: "Open menu",
     command: "Search or run a command",
+    androidApp: "Android app",
+    androidAppDescription: "A local Android edition of Noum List that works offline after installation.",
+    buildApk: "Create APK",
+    apkHint: "The Android project is ready. Use Publish to create a downloadable APK.",
   },
 } as const;
 
@@ -670,6 +679,7 @@ function App() {
         <BackupPanel locale={locale} user={syncUser} remoteUpdatedAt={remoteSnapshot?.updatedAt ?? null} busy={syncBusy} onExport={exportBackup} onImport={importBackup} onLogin={startSyncLogin} onUpload={requestCloudBackup} onRestoreRemote={() => void restoreCloudBackup()} />
         <Panel title={copy.language}><div className="setting-row"><div><strong>{copy.language}</strong><span>{isArabic ? "بدّل اتجاه المحتوى ولغة الواجهة فورًا." : "Switch content direction and interface copy instantly."}</span></div><div className="segment-control"><button className={locale === "ar" ? "active" : ""} type="button" onClick={() => setState((current) => ({ ...current, locale: "ar" }))}>{copy.arabic}</button><button className={locale === "en" ? "active" : ""} type="button" onClick={() => setState((current) => ({ ...current, locale: "en" }))}>{copy.english}</button></div></div></Panel>
         <Panel title={copy.focusRoom}><div className="setting-row"><div><strong>{copy.sound}</strong><span>{isArabic ? "يُشغّل صوتًا بسيطًا بعد إنهاء جلسة ناجحة." : "Plays a subtle sound after a completed session."}</span></div><button className={`switch ${state.soundEnabled ? "enabled" : ""}`} aria-label={copy.sound} type="button" onClick={() => setState((current) => ({ ...current, soundEnabled: !current.soundEnabled }))}><i /></button></div></Panel>
+        <Panel title={copy.androidApp}><div className="setting-row android-release-row"><div><strong>{copy.androidApp}</strong><span>{copy.androidAppDescription}</span></div><button className="primary-button" type="button" onClick={() => notify(copy.apkHint)}><Download size={16} /> {copy.buildApk}</button></div></Panel>
         <Panel title={copy.resetData}><div className="setting-row"><div><strong>{copy.resetData}</strong><span>{copy.resetDescription}</span></div><button className="danger-button" type="button" onClick={() => { setState(resetNoumState()); setActiveView("dashboard"); notify(copy.resetConfirm); }}><RotateCcw size={16} /> {copy.resetData}</button></div></Panel>
       </div>
     </>;

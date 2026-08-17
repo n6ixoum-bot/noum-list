@@ -132,3 +132,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px
 /* Connection state */
 .offline-indicator { min-height: 28px; display: inline-flex; align-items: center; gap: 5px; padding: 0 8px; border: 1px solid rgba(244,191,103,.22); border-radius: 8px; background: rgba(244,191,103,.08); color: var(--amber); font-size: 9.5px; white-space: nowrap; }
 @media (max-width: 760px) { .offline-indicator span { display: none; } .offline-indicator { width: 29px; padding: 0; justify-content: center; } }
+
+/* Android package hand-off */
+.android-release-row { padding: 4px 0; }
+.android-release-row > div:first-child { max-width: 510px; }
