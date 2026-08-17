@@ -13,6 +13,7 @@ describe("Noum List backups", () => {
     expect(restored.state.tasks).toHaveLength(state.tasks.length);
     expect(restored.state.notes).toHaveLength(0);
     expect(restored.state.books).toHaveLength(0);
+    expect(restored.state.focusSessions).toHaveLength(0);
   });
 
   it("rejects malformed or incomplete files before restore", () => {

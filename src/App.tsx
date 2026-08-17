@@ -39,6 +39,7 @@ import { BrandMark, CompletionBox, EmptyState, IconButton, MoreButton, Panel, Pr
 import { BackupPanel } from "./components/backup-panel";
 import { downloadBackup, makeCloudBackup, parseCloudBackup, readBackupFile, type BackupEnvelope } from "./lib/noum-backup";
 import { loadNoumState, resetNoumState, saveNoumState } from "./lib/noum-store";
+import { createFocusSession } from "./lib/focus-sessions";
 import { getRemoteSnapshot, getSyncStatus, startSyncLogin, uploadSnapshot, type RemoteSnapshot, type SyncUser } from "./lib/sync-client";
 import type { Locale, NoumState, Task, TaskPriority, ViewId } from "./types";
 
@@ -239,6 +240,7 @@ function App() {
   const [newNoteTitle, setNewNoteTitle] = useState("");
   const [newNoteBody, setNewNoteBody] = useState("");
   const [secondsLeft, setSecondsLeft] = useState(25 * 60);
+  const [focusDuration, setFocusDuration] = useState(25);
   const [timerRunning, setTimerRunning] = useState(false);
   const [showAnswer, setShowAnswer] = useState(false);
   const [syncUser, setSyncUser] = useState<SyncUser | null>(null);
@@ -267,13 +269,21 @@ function App() {
         if (remaining > 1) return remaining - 1;
         window.clearInterval(interval);
         setTimerRunning(false);
-        setState((current) => ({ ...current, focusMinutes: current.focusMinutes + 25 }));
+        setState((current) => {
+          const activeFocusPath = current.paths.find((path) => pathProgress(path) < 100) ?? current.paths[0];
+          const session = createFocusSession(focusDuration, activeFocusPath?.id ?? null);
+          return {
+            ...current,
+            focusMinutes: current.focusMinutes + session.minutes,
+            focusSessions: [session, ...current.focusSessions].slice(0, 30),
+          };
+        });
         setToast(copy.focusComplete);
         return 0;
       });
     }, 1000);
     return () => window.clearInterval(interval);
-  }, [copy.focusComplete, timerRunning]);
+  }, [copy.focusComplete, focusDuration, timerRunning]);
 
   useEffect(() => {
     if (!toast) return;
@@ -426,7 +436,16 @@ function App() {
     notify(isArabic ? "تمت إضافة الكتاب وفتح ملف PDF." : "The book was added and the PDF was opened.");
   }
 
-  function resetFocus(minutes: number = 25) { setTimerRunning(false); setSecondsLeft(minutes * 60); }
+  function resetFocus(minutes: number = 25) { setTimerRunning(false); setFocusDuration(minutes); setSecondsLeft(minutes * 60); }
+
+  function toggleFocusTimer() {
+    if (timerRunning) {
+      setTimerRunning(false);
+      return;
+    }
+    if (secondsLeft <= 0) setSecondsLeft(focusDuration * 60);
+    setTimerRunning(true);
+  }
 
   async function refreshSyncStatus() {
     try {
@@ -618,8 +637,8 @@ function App() {
   function renderFocus() {
     return <>
       <PageIntro eyebrow={isArabic ? "عمل عميق" : "Deep work"} title={copy.focusRoom} subtitle={copy.focusSubtitle} />
-      <section className="focus-room"><div className="focus-room-ambient" /><div className="focus-room-inner"><div className="focus-mode-tag"><Moon size={15} /> {isArabic ? "وضع هادئ" : "Quiet mode"}</div><h2>{activePath?.title ?? copy.focusRoom}</h2><p>{activePath?.nextAction ?? copy.focusSubtitle}</p><div className="timer-value"><span>{focusDisplay}</span></div><div className="timer-preset"><button onClick={() => resetFocus(25)} className={secondsLeft === 1500 ? "active" : ""} type="button">25</button><button onClick={() => resetFocus(50)} className={secondsLeft === 3000 ? "active" : ""} type="button">50</button><button onClick={() => resetFocus(90)} className={secondsLeft === 5400 ? "active" : ""} type="button">90</button><span>{copy.minutes}</span></div><div className="timer-controls"><button className="timer-reset" type="button" onClick={() => resetFocus()} aria-label={copy.reset}><TimerReset size={19} /></button><button className="timer-start" type="button" onClick={() => setTimerRunning((running) => !running)}>{timerRunning ? <><Pause size={18} fill="currentColor" /> {copy.pause}</> : <><Play size={18} fill="currentColor" /> {copy.start}</>}</button></div></div><aside className="focus-sidecard"><div className="focus-side-icon"><Music2 size={18} /></div><strong>{isArabic ? "الصوت المحيط" : "Ambient sound"}</strong><p>{isArabic ? "دع ضوضاء خفيفة تحجب المقاطعات." : "Use a light sound layer to hide interruptions."}</p><button className={`sound-toggle ${state.soundEnabled ? "on" : ""}`} type="button" onClick={() => setState((current) => ({ ...current, soundEnabled: !current.soundEnabled }))}><Volume2 size={16} /><span>{state.soundEnabled ? (isArabic ? "مفعّل" : "On") : (isArabic ? "متوقف" : "Off")}</span><i /></button><div className="focus-tip"><Coffee size={16} /><span>{isArabic ? "خذ استراحة قصيرة بعد كل جلستين." : "Take a short break after every two sessions."}</span></div></aside></section>
-      <section className="focus-history"><Panel title={isArabic ? "آخر الجلسات" : "Recent sessions"}><EmptyState kind="focus" icon={<TimerReset size={22} />} title={isArabic ? "ابدأ مساحة تركيزك" : "Start your focus space"} text={isArabic ? "ستظهر جلساتك هنا بعد أول جلسة مركزة." : "Your sessions will appear here after your first focused session."} action={<button className="soft-button" type="button" onClick={() => resetFocus(25)}><Play size={15} /> {copy.start}</button>} /></Panel></section>
+      <section className="focus-room"><div className="focus-room-ambient" /><div className="focus-room-inner"><div className="focus-mode-tag"><Moon size={15} /> {isArabic ? "وضع هادئ" : "Quiet mode"}</div><h2>{activePath?.title ?? copy.focusRoom}</h2><p>{activePath?.nextAction ?? copy.focusSubtitle}</p><div className="timer-value"><span>{focusDisplay}</span></div><div className="timer-preset"><button onClick={() => resetFocus(25)} className={secondsLeft === 1500 ? "active" : ""} type="button">25</button><button onClick={() => resetFocus(50)} className={secondsLeft === 3000 ? "active" : ""} type="button">50</button><button onClick={() => resetFocus(90)} className={secondsLeft === 5400 ? "active" : ""} type="button">90</button><span>{copy.minutes}</span></div><div className="timer-controls"><button className="timer-reset" type="button" onClick={() => resetFocus()} aria-label={copy.reset}><TimerReset size={19} /></button><button className="timer-start" type="button" onClick={toggleFocusTimer}>{timerRunning ? <><Pause size={18} fill="currentColor" /> {copy.pause}</> : <><Play size={18} fill="currentColor" /> {copy.start}</>}</button></div></div><aside className="focus-sidecard"><div className="focus-side-icon"><Music2 size={18} /></div><strong>{isArabic ? "الصوت المحيط" : "Ambient sound"}</strong><p>{isArabic ? "دع ضوضاء خفيفة تحجب المقاطعات." : "Use a light sound layer to hide interruptions."}</p><button className={`sound-toggle ${state.soundEnabled ? "on" : ""}`} type="button" onClick={() => setState((current) => ({ ...current, soundEnabled: !current.soundEnabled }))}><Volume2 size={16} /><span>{state.soundEnabled ? (isArabic ? "مفعّل" : "On") : (isArabic ? "متوقف" : "Off")}</span><i /></button><div className="focus-tip"><Coffee size={16} /><span>{isArabic ? "خذ استراحة قصيرة بعد كل جلستين." : "Take a short break after every two sessions."}</span></div></aside></section>
+      <section className="focus-history"><Panel title={isArabic ? "آخر الجلسات" : "Recent sessions"}>{state.focusSessions.length ? <div className="session-list">{state.focusSessions.slice(0, 6).map((session) => { const sessionPath = state.paths.find((path) => path.id === session.pathId); const date = new Intl.DateTimeFormat(isArabic ? "ar-SA" : "en-US", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }).format(new Date(session.completedAt)); return <article className="focus-session" key={session.id}><span className={`session-icon ${sessionPath?.color ?? "mint"}`}><TimerReset size={16} /></span><div><strong>{session.minutes} {copy.minutes}</strong><small>{sessionPath?.title ?? (isArabic ? "جلسة تركيز شخصية" : "Personal focus session")}</small></div><time dateTime={session.completedAt}>{date}</time></article>; })}</div> : <EmptyState kind="focus" icon={<TimerReset size={22} />} title={isArabic ? "ابدأ مساحة تركيزك" : "Start your focus space"} text={isArabic ? "ستظهر جلساتك هنا بعد أول جلسة مركزة." : "Your sessions will appear here after your first focused session."} action={<button className="soft-button" type="button" onClick={() => resetFocus(25)}><Play size={15} /> {copy.start}</button>} />}</Panel></section>
     </>;
   }
 

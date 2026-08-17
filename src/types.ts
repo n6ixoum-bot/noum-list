@@ -55,6 +55,13 @@ export interface LibraryBook {
   question: string;
 }
 
+export interface FocusSession {
+  id: string;
+  completedAt: string;
+  minutes: number;
+  pathId: string | null;
+}
+
 export interface NoumState {
   locale: Locale;
   tasks: Task[];
@@ -63,5 +70,6 @@ export interface NoumState {
   flashcards: Flashcard[];
   books: LibraryBook[];
   focusMinutes: number;
+  focusSessions: FocusSession[];
   soundEnabled: boolean;
 }

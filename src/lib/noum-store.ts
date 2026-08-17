@@ -1,8 +1,8 @@
-import type { Flashcard, KnowledgeNote, LibraryBook, LearningPath, NoumState, Task } from "../types";
+import type { Flashcard, FocusSession, KnowledgeNote, LibraryBook, LearningPath, NoumState, Task } from "../types";
 
 const STORE_KEY = "noum-list-web-v2";
 const LEGACY_STORE_KEY = "noum-list-web-v1";
-const STORE_VERSION = 3;
+const STORE_VERSION = 4;
 
 type PersistedNoumState = Partial<NoumState> & { version?: number };
 
@@ -89,11 +89,28 @@ export const seedState: NoumState = {
   flashcards: [],
   books: [],
   focusMinutes: 0,
+  focusSessions: [],
   soundEnabled: false,
 };
 
 function copySeed(): NoumState {
   return JSON.parse(JSON.stringify(seedState)) as NoumState;
+}
+
+function normalizeFocusSessions(input: unknown): FocusSession[] {
+  if (!Array.isArray(input)) return [];
+  return input.filter((item): item is FocusSession => {
+    if (!item || typeof item !== "object") return false;
+    const session = item as Record<string, unknown>;
+    return typeof session.id === "string"
+      && typeof session.completedAt === "string"
+      && Number.isFinite(Date.parse(session.completedAt))
+      && typeof session.minutes === "number"
+      && Number.isFinite(session.minutes)
+      && session.minutes > 0
+      && session.minutes <= 240
+      && (typeof session.pathId === "string" || session.pathId === null);
+  }).slice(0, 30);
 }
 
 function normalizeState(input: PersistedNoumState): NoumState {
@@ -108,6 +125,7 @@ function normalizeState(input: PersistedNoumState): NoumState {
     flashcards: Array.isArray(input.flashcards) ? input.flashcards : seed.flashcards,
     books: Array.isArray(input.books) ? input.books : seed.books,
     focusMinutes: typeof input.focusMinutes === "number" && Number.isFinite(input.focusMinutes) ? Math.max(0, input.focusMinutes) : seed.focusMinutes,
+    focusSessions: normalizeFocusSessions(input.focusSessions),
     soundEnabled: typeof input.soundEnabled === "boolean" ? input.soundEnabled : seed.soundEnabled,
   };
 }

@@ -1,4 +1,4 @@
-import type { NoumState } from "../types";
+import type { FocusSession, NoumState } from "../types";
 
 export const BACKUP_FORMAT = "noum-list-backup" as const;
 export const BACKUP_VERSION = 1 as const;
@@ -27,7 +27,20 @@ export async function makeCloudBackup(state: NoumState): Promise<CloudBackupPayl
   return { version: BACKUP_VERSION, payload, checksum: await sha256(payload) };
 }
 
-function isNoumState(value: unknown): value is NoumState {
+function isFocusSession(value: unknown): value is FocusSession {
+  if (!value || typeof value !== "object") return false;
+  const session = value as Record<string, unknown>;
+  return typeof session.id === "string"
+    && typeof session.completedAt === "string"
+    && Number.isFinite(Date.parse(session.completedAt))
+    && typeof session.minutes === "number"
+    && Number.isFinite(session.minutes)
+    && session.minutes > 0
+    && session.minutes <= 240
+    && (typeof session.pathId === "string" || session.pathId === null);
+}
+
+function isNoumState(value: unknown): value is Omit<NoumState, "focusSessions"> & { focusSessions?: FocusSession[] } {
   if (!value || typeof value !== "object") return false;
   const data = value as Record<string, unknown>;
   return (data.locale === "ar" || data.locale === "en")
@@ -37,7 +50,8 @@ function isNoumState(value: unknown): value is NoumState {
     && Array.isArray(data.flashcards)
     && Array.isArray(data.books)
     && typeof data.focusMinutes === "number"
-    && typeof data.soundEnabled === "boolean";
+    && typeof data.soundEnabled === "boolean"
+    && (data.focusSessions === undefined || (Array.isArray(data.focusSessions) && data.focusSessions.every(isFocusSession)));
 }
 
 export function parseBackup(payload: string): BackupEnvelope {
@@ -45,7 +59,13 @@ export function parseBackup(payload: string): BackupEnvelope {
   if (parsed.format !== BACKUP_FORMAT || parsed.version !== BACKUP_VERSION || typeof parsed.createdAt !== "string" || !isNoumState(parsed.state)) {
     throw new Error("INVALID_BACKUP");
   }
-  return parsed as BackupEnvelope;
+  const state = parsed.state;
+  return {
+    format: BACKUP_FORMAT,
+    version: BACKUP_VERSION,
+    createdAt: parsed.createdAt,
+    state: { ...state, focusSessions: state.focusSessions ?? [] },
+  } as BackupEnvelope;
 }
 
 export async function parseCloudBackup(payload: string, checksum: string): Promise<BackupEnvelope> {

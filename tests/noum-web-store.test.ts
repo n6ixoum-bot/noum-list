@@ -11,6 +11,7 @@ describe("Noum List web store", () => {
     expect(second.tasks).toHaveLength(0);
     expect(first.paths).toHaveLength(seedState.paths.length);
     expect(first.notes).toHaveLength(0);
+    expect(first.focusSessions).toHaveLength(0);
   });
 
   it("resets to a clean workspace", () => {
@@ -19,6 +20,7 @@ describe("Noum List web store", () => {
     expect(reset.flashcards).toHaveLength(0);
     expect(reset.books).toHaveLength(0);
     expect(reset.focusMinutes).toBe(0);
+    expect(reset.focusSessions).toHaveLength(0);
     expect(reset.soundEnabled).toBe(false);
   });
 });

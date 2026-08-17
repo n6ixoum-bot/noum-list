@@ -116,3 +116,15 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px
 .library-empty h2 { margin: 4px 0 0; color: var(--text); }
 .library-empty p { max-width: 460px; margin: 0 0 10px; line-height: 1.7; }
 @media (max-width: 720px) { .library-toolbar { align-items: stretch; flex-direction: column; } .library-filters { overflow-x: auto; } .library-filters button { flex: 1; white-space: nowrap; } }
+
+/* Focus session history */
+.session-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.focus-session { min-width: 0; padding: 12px; display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 8px; align-items: center; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.018); }
+.session-icon { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 10px; color: var(--mint); background: rgba(72,226,163,.1); }
+.session-icon.blue { color: var(--blue); background: rgba(118,167,255,.1); }
+.session-icon.amber { color: var(--amber); background: rgba(244,191,103,.1); }
+.session-icon.violet { color: var(--violet); background: rgba(187,156,255,.1); }
+.focus-session div { min-width: 0; }
+.focus-session strong { display: block; color: var(--text); font: 700 11px "Manrope"; }
+.focus-session small { display: block; overflow: hidden; color: var(--muted-2); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.focus-session time { grid-column: 2; color: var(--muted-2); font: 8.5px "Manrope"; }
