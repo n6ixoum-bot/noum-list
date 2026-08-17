@@ -15,6 +15,7 @@
     "test": "vitest run",
     "db:push": "drizzle-kit generate && drizzle-kit migrate",
     "android:sync": "pnpm build && cap sync android",
+    "android:apk:debug": "pnpm android:sync && cd android && ./gradlew assembleDebug",
     "android:open": "cap open android"
   },
   "dependencies": {
