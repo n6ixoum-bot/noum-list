@@ -5,6 +5,7 @@ import { resetNoumState } from "../src/lib/noum-store";
 describe("Noum List backups", () => {
   it("round-trips a valid local-first workspace backup", () => {
     const state = resetNoumState();
+    state.notificationReadIds.push("task:today-task");
     const envelope = makeBackupEnvelope(state);
     const restored = parseBackup(JSON.stringify(envelope));
 
@@ -14,6 +15,7 @@ describe("Noum List backups", () => {
     expect(restored.state.notes).toHaveLength(0);
     expect(restored.state.books).toHaveLength(0);
     expect(restored.state.focusSessions).toHaveLength(0);
+    expect(restored.state.notificationReadIds).toEqual(["task:today-task"]);
   });
 
   it("rejects malformed or incomplete files before restore", () => {

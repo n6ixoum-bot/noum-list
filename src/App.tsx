@@ -42,6 +42,7 @@ import { BackupPanel } from "./components/backup-panel";
 import { downloadBackup, makeCloudBackup, parseCloudBackup, readBackupFile, type BackupEnvelope } from "./lib/noum-backup";
 import { loadNoumState, resetNoumState, saveNoumState } from "./lib/noum-store";
 import { createFocusSession } from "./lib/focus-sessions";
+import { buildLocalNotifications } from "./lib/notifications";
 import { getRemoteSnapshot, getSyncStatus, startSyncLogin, uploadSnapshot, type RemoteSnapshot, type SyncUser } from "./lib/sync-client";
 import type { Locale, NoumState, Task, TaskPriority, ViewId } from "./types";
 
@@ -262,6 +263,7 @@ function App() {
   const [libraryQuery, setLibraryQuery] = useState("");
   const [libraryFilter, setLibraryFilter] = useState<"all" | "active" | "finished">("all");
   const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const pdfInput = useRef<HTMLInputElement>(null);
 
   const locale = state.locale;
@@ -324,6 +326,7 @@ function App() {
         setPendingRestore(null);
         setConfirmCloudOverwrite(false);
         setMobileOpen(false);
+        setNotificationsOpen(false);
       }
     };
     window.addEventListener("keydown", handleKeyboard);
@@ -352,11 +355,23 @@ function App() {
       return matchesQuery && matchesFilter;
     }).sort((a, b) => a.title.localeCompare(b.title));
   }, [libraryFilter, libraryQuery, state.books]);
+  const notifications = useMemo(() => buildLocalNotifications(state, locale), [locale, state]);
+  const unreadNotifications = notifications.filter((notification) => !state.notificationReadIds.includes(notification.id));
   const focusDisplay = `${Math.floor(secondsLeft / 60).toString().padStart(2, "0")}:${(secondsLeft % 60).toString().padStart(2, "0")}`;
   const chartValues = useMemo(() => Array(7).fill(0), []);
 
   const notify = (message: string) => setToast(message);
-  const changeView = (view: ViewId) => { setActiveView(view); setMobileOpen(false); };
+  const changeView = (view: ViewId) => { setActiveView(view); setMobileOpen(false); setNotificationsOpen(false); };
+
+  function openNotification(notification: (typeof notifications)[number]) {
+    setState((current) => ({ ...current, notificationReadIds: [...new Set([...current.notificationReadIds, notification.id])].slice(-100) }));
+    setNotificationsOpen(false);
+    changeView(notification.target);
+  }
+
+  function markNotificationsRead() {
+    setState((current) => ({ ...current, notificationReadIds: [...new Set([...current.notificationReadIds, ...notifications.map((notification) => notification.id)])].slice(-100) }));
+  }
 
   function toggleTask(taskId: string) {
     const target = state.tasks.find((task) => task.id === taskId);
@@ -694,7 +709,7 @@ function App() {
       <div className="sidebar-bottom"><button className="shortcut-hint" type="button" onClick={() => setShowNewTask(true)}><Keyboard size={15} /><span>{isArabic ? "التقاط فكرة" : "Capture thought"}</span><kbd>⌘ K</kbd></button><div className="profile-card"><span className="profile-avatar">ن</span><div><strong>{isArabic ? "مساحتي" : "My workspace"}</strong><small>Level {level.toString().padStart(2, "0")} · {xpTotal} XP</small></div><MoreButton label="Profile actions" /></div></div>
     </aside>
     {mobileOpen ? <button className="nav-backdrop" aria-label={copy.close} type="button" onClick={() => setMobileOpen(false)} /> : null}
-    <main className="main-content"><div className="topbar"><IconButton label={copy.mobileMenu} className="mobile-menu" onClick={() => setMobileOpen(true)}><Menu size={21} /></IconButton><button className="command-search" type="button" aria-label={copy.command} onClick={() => setShowNewTask(true)}><Search size={18} /><span>{copy.command}</span><kbd>⌘ K</kbd></button><div className="topbar-actions">{!isOnline ? <div className="offline-indicator" role="status"><WifiOff size={14} /><span>{isArabic ? "دون اتصال — محفوظ محليًا" : "Offline — saved locally"}</span></div> : null}<IconButton label="Notifications" className="notification-button"><Bell size={19} /><i /></IconButton><div className="date-chip"><Clock3 size={16} /><span>{todayLabel}</span></div></div></div><div className="workspace">{viewContent[activeView]()}</div></main>
+    <main className="main-content"><div className="topbar"><IconButton label={copy.mobileMenu} className="mobile-menu" onClick={() => setMobileOpen(true)}><Menu size={21} /></IconButton><button className="command-search" type="button" aria-label={copy.command} onClick={() => setShowNewTask(true)}><Search size={18} /><span>{copy.command}</span><kbd>⌘ K</kbd></button><div className="topbar-actions">{!isOnline ? <div className="offline-indicator" role="status"><WifiOff size={14} /><span>{isArabic ? "دون اتصال — محفوظ محليًا" : "Offline — saved locally"}</span></div> : null}<div className="notification-menu"><IconButton label={isArabic ? "الإشعارات" : "Notifications"} className="notification-button" onClick={() => setNotificationsOpen((open) => !open)} aria-expanded={notificationsOpen}><Bell size={19} />{unreadNotifications.length ? <i /> : null}</IconButton>{notificationsOpen ? <section className="notification-popover" role="dialog" aria-label={isArabic ? "مركز الإشعارات" : "Notification center"}><header><div><span className="eyebrow">{isArabic ? "مركز الإشعارات" : "Notification center"}</span><strong>{isArabic ? `${unreadNotifications.length} غير مقروءة` : `${unreadNotifications.length} unread`}</strong></div>{unreadNotifications.length ? <button className="text-button" type="button" onClick={markNotificationsRead}>{isArabic ? "قراءة الكل" : "Mark all read"}</button> : null}</header>{notifications.length ? <div className="notification-list">{notifications.map((notification) => <button className={`notification-item ${state.notificationReadIds.includes(notification.id) ? "read" : ""}`} type="button" key={notification.id} onClick={() => openNotification(notification)}><span className={`notification-tone ${notification.tone}`} /><span><strong>{notification.title}</strong><small>{notification.detail}</small></span><ChevronLeft size={15} /></button>)}</div> : <div className="notification-empty"><Bell size={19} /><strong>{isArabic ? "كل شيء هادئ" : "All caught up"}</strong><p>{isArabic ? "ستظهر هنا مهامك ومراجعاتك المهمة." : "Your important tasks and reviews will appear here."}</p></div>}</section> : null}</div><div className="date-chip"><Clock3 size={16} /><span>{todayLabel}</span></div></div></div><div className="workspace">{viewContent[activeView]()}</div></main>
     {toast ? <div className="toast-message" role="status"><Check size={17} />{toast}</div> : null}
     {showNewTask ? <Modal title={copy.addTask} onClose={() => setShowNewTask(false)}><label className="field-label">{copy.addTask}<input autoFocus value={newTaskTitle} onChange={(event) => setNewTaskTitle(event.target.value)} placeholder={copy.taskPlaceholder} onKeyDown={(event) => { if (event.key === "Enter") addTask(); }} /></label><div className="modal-actions"><button className="ghost-button" type="button" onClick={() => setShowNewTask(false)}>{copy.cancel}</button><button className="primary-button" type="button" onClick={addTask}>{copy.save}</button></div></Modal> : null}
     {showNewPath ? <Modal title={copy.newPath} onClose={() => setShowNewPath(false)}><label className="field-label">{copy.pathName}<input autoFocus value={newPathTitle} onChange={(event) => setNewPathTitle(event.target.value)} placeholder={isArabic ? "مثال: تعلّم الرسم الرقمي" : "Example: Learn digital art"} /></label><label className="field-label">{copy.pathDesc}<textarea value={newPathDescription} onChange={(event) => setNewPathDescription(event.target.value)} placeholder={isArabic ? "صف النتيجة التي تريدها…" : "Describe the outcome you want…"} rows={3} /></label><div className="modal-actions"><button className="ghost-button" type="button" onClick={() => setShowNewPath(false)}>{copy.cancel}</button><button className="primary-button" type="button" onClick={addPath}>{copy.create}</button></div></Modal> : null}

@@ -71,5 +71,6 @@ export interface NoumState {
   books: LibraryBook[];
   focusMinutes: number;
   focusSessions: FocusSession[];
+  notificationReadIds: string[];
   soundEnabled: boolean;
 }

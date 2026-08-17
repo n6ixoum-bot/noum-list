@@ -90,6 +90,7 @@ export const seedState: NoumState = {
   books: [],
   focusMinutes: 0,
   focusSessions: [],
+  notificationReadIds: [],
   soundEnabled: false,
 };
 
@@ -113,6 +114,11 @@ function normalizeFocusSessions(input: unknown): FocusSession[] {
   }).slice(0, 30);
 }
 
+function normalizeNotificationReadIds(input: unknown): string[] {
+  if (!Array.isArray(input)) return [];
+  return input.filter((item): item is string => typeof item === "string" && item.length > 0).slice(-100);
+}
+
 function normalizeState(input: PersistedNoumState): NoumState {
   const seed = copySeed();
   return {
@@ -126,6 +132,7 @@ function normalizeState(input: PersistedNoumState): NoumState {
     books: Array.isArray(input.books) ? input.books : seed.books,
     focusMinutes: typeof input.focusMinutes === "number" && Number.isFinite(input.focusMinutes) ? Math.max(0, input.focusMinutes) : seed.focusMinutes,
     focusSessions: normalizeFocusSessions(input.focusSessions),
+    notificationReadIds: normalizeNotificationReadIds(input.notificationReadIds),
     soundEnabled: typeof input.soundEnabled === "boolean" ? input.soundEnabled : seed.soundEnabled,
   };
 }

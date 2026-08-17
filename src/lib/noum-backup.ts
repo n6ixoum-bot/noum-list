@@ -40,7 +40,7 @@ function isFocusSession(value: unknown): value is FocusSession {
     && (typeof session.pathId === "string" || session.pathId === null);
 }
 
-function isNoumState(value: unknown): value is Omit<NoumState, "focusSessions"> & { focusSessions?: FocusSession[] } {
+function isNoumState(value: unknown): value is Omit<NoumState, "focusSessions" | "notificationReadIds"> & { focusSessions?: FocusSession[]; notificationReadIds?: string[] } {
   if (!value || typeof value !== "object") return false;
   const data = value as Record<string, unknown>;
   return (data.locale === "ar" || data.locale === "en")
@@ -51,7 +51,8 @@ function isNoumState(value: unknown): value is Omit<NoumState, "focusSessions"> 
     && Array.isArray(data.books)
     && typeof data.focusMinutes === "number"
     && typeof data.soundEnabled === "boolean"
-    && (data.focusSessions === undefined || (Array.isArray(data.focusSessions) && data.focusSessions.every(isFocusSession)));
+    && (data.focusSessions === undefined || (Array.isArray(data.focusSessions) && data.focusSessions.every(isFocusSession)))
+    && (data.notificationReadIds === undefined || (Array.isArray(data.notificationReadIds) && data.notificationReadIds.every((id) => typeof id === "string")));
 }
 
 export function parseBackup(payload: string): BackupEnvelope {
@@ -64,7 +65,7 @@ export function parseBackup(payload: string): BackupEnvelope {
     format: BACKUP_FORMAT,
     version: BACKUP_VERSION,
     createdAt: parsed.createdAt,
-    state: { ...state, focusSessions: state.focusSessions ?? [] },
+    state: { ...state, focusSessions: state.focusSessions ?? [], notificationReadIds: state.notificationReadIds ?? [] },
   } as BackupEnvelope;
 }
 
